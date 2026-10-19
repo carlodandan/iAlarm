@@ -1,0 +1,147 @@
+# ==========================================
+# Secrets, Credentials, & Private Keys
+# ==========================================
+# Environment variables and local configs
+.env
+.env.*
+*.env
+!.env.example
+secrets/
+*.secret
+*.secrets
+
+# Android Keystores & Signing Credentials
+*.keystore
+*.jks
+*.p12
+*.pem
+*.pk8
+*.key
+*.pub
+keystore.properties
+key.properties
+signing.properties
+
+# Google Services, Cloud, & OAuth credentials
+google-services.json
+GoogleService-Info.plist
+*service-account*.json
+credentials.json
+token.json
+client_secrets*.json
+
+# Minisign & Tauri Updater keys
+minisign.key
+minisign.pub
+updater-key.*
+
+# Local Developer Machine Configuration (contains local paths & user credentials)
+local.properties
+local.settings.json
+
+# Local Application Data & User Persistence
+.ialarm_data/
+*.ialarm_data/
+*.db
+*.sqlite
+*.sqlite3
+
+# ==========================================
+# Build Artifacts & Binaries
+# ==========================================
+# Node.js & Web build outputs
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.local
+
+# Rust & Cargo targets
+target/
+src-tauri/target/
+
+# Android & Gradle build outputs and caches
+.gradle/
+build/
+**/build/
+src-tauri/gen/android/.gradle/
+src-tauri/gen/android/build/
+src-tauri/gen/android/app/build/
+src-tauri/gen/android/app/.cxx/
+src-tauri/gen/android/app/src/main/jniLibs/
+src-tauri/gen/schemas/
+
+# Binary packages & executables
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+*.so
+*.dylib
+*.dll
+*.exe
+*.msi
+*.dmg
+*.app
+*.ipa
+
+# ==========================================
+# Logs & Diagnostic Dumps
+# ==========================================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+hs_err_pid*
+replay_pid*
+
+# ==========================================
+# Editor & IDE Configurations
+# ==========================================
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.iml
+.project
+.classpath
+.settings/
+
+# ==========================================
+# Operating System Metadata
+# ==========================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ==========================================
+# AI Agents & Automation Scratchpads
+# ==========================================
+.agent/
+.agents/
+.gemini/
+.claude/
+.codex/
+.github/prompts/
+.system_generated/
+scratch/
+
+# ==========================================
+# MCP Configurations
+# ==========================================
+.mcp.json
+.mcp/**

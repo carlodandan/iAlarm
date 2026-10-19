@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">iAlarm</string>
+    <string name="main_activity_title">iAlarm</string>
+    <string name="full_app_name">Interval Alarm</string>
+</resources>
