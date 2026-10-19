@@ -62,10 +62,15 @@ jobs:
         id: pkg
         run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
+      - name: Rename APK
+        run: |
+          mv src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk \
+             src-tauri/gen/android/app/build/outputs/apk/universal/release/iAlarm-v${{ steps.pkg.outputs.version }}.apk
+
       - name: Upload APK to GitHub Release
         uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ steps.pkg.outputs.version }}
-          files: src-tauri/gen/android/app/build/outputs/apk/iAlarm-*.apk
+          files: src-tauri/gen/android/app/build/outputs/apk/universal/release/iAlarm-*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
