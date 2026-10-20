@@ -291,3 +291,19 @@ pub fn request_notification_permission(app: AppHandle) -> Result<(), String> {
     }
     Ok(())
 }
+
+#[tauri::command]
+pub fn get_alarm_logs(app: AppHandle) -> Result<String, String> {
+    if let Some(bridge) = app.try_state::<AndroidBridge>() {
+        return bridge.get_alarm_logs();
+    }
+    Ok("[]".into())
+}
+
+#[tauri::command]
+pub fn clear_alarm_logs(app: AppHandle) -> Result<(), String> {
+    if let Some(bridge) = app.try_state::<AndroidBridge>() {
+        return bridge.clear_alarm_logs();
+    }
+    Ok(())
+}

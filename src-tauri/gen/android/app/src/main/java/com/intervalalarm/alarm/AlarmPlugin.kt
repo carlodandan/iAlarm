@@ -186,4 +186,26 @@ class AlarmPlugin(private val activity: Activity) : Plugin(activity) {
             invoke.reject(e.message)
         }
     }
+
+    @Command
+    fun getAlarmLogs(invoke: Invoke) {
+        try {
+            val logsJson = AlarmLogger.getRecentLogs(activity)
+            val res = JSObject()
+            res.put("logs", logsJson)
+            invoke.resolve(res)
+        } catch (e: Exception) {
+            invoke.reject(e.message)
+        }
+    }
+
+    @Command
+    fun clearAlarmLogs(invoke: Invoke) {
+        try {
+            AlarmLogger.clearLogs(activity)
+            invoke.resolve()
+        } catch (e: Exception) {
+            invoke.reject(e.message)
+        }
+    }
 }

@@ -8,6 +8,14 @@ import android.os.Build
 import android.util.Log
 import java.util.Calendar
 
+data class NextOccurrenceResult(
+    val targetTimeMs: Long?,
+    val occurrenceIndex: Int,
+    val isCompleted: Boolean,
+    val newStartTimeMs: Long?,
+    val newState: String
+)
+
 object AlarmScheduler {
     private const val TAG = "AlarmScheduler"
 
@@ -20,120 +28,160 @@ object AlarmScheduler {
         }
     }
 
+    fun computeNextOccurrence(sequence: NativeAlarmSequence, now: Long): NextOccurrenceResult {
+        if (!sequence.enabled || sequence.state == "completed") {
+            return NextOccurrenceResult(
+                targetTimeMs = null,
+                occurrenceIndex = sequence.currentOccurrenceIndex,
+                isCompleted = true,
+                newStartTimeMs = null,
+                newState = "completed"
+            )
+        }
+
+        val currentIdx = sequence.currentOccurrenceIndex
+        val snoozeTime = sequence.snoozedUntil
+
+        // If snoozed and snooze time is in the future, return snooze target
+        if (snoozeTime != null && snoozeTime > now) {
+            return NextOccurrenceResult(
+                targetTimeMs = snoozeTime,
+                occurrenceIndex = currentIdx,
+                isCompleted = false,
+                newStartTimeMs = null,
+                newState = "snoozed"
+            )
+        }
+
+        val intervalMs = sequence.intervalDurationMs()
+
+        // Find next future occurrence in current sequence
+        var candidateIdx = currentIdx
+        var foundTime: Long? = null
+        while (candidateIdx < sequence.totalOccurrences) {
+            val occTime = sequence.startTime + (candidateIdx * intervalMs)
+            if (occTime > now) {
+                foundTime = occTime
+                break
+            }
+            candidateIdx++
+        }
+
+        if (foundTime != null) {
+            return NextOccurrenceResult(
+                targetTimeMs = foundTime,
+                occurrenceIndex = candidateIdx,
+                isCompleted = false,
+                newStartTimeMs = null,
+                newState = "scheduled"
+            )
+        }
+
+        // If all occurrences are in the past, handle repetition modes
+        return when (sequence.repetitionMode) {
+            "one_time" -> {
+                NextOccurrenceResult(
+                    targetTimeMs = null,
+                    occurrenceIndex = sequence.totalOccurrences,
+                    isCompleted = true,
+                    newStartTimeMs = null,
+                    newState = "completed"
+                )
+            }
+            "daily" -> {
+                val nextDayStart = calculateNextDailyStart(sequence.startTime, now)
+                NextOccurrenceResult(
+                    targetTimeMs = nextDayStart,
+                    occurrenceIndex = 0,
+                    isCompleted = false,
+                    newStartTimeMs = nextDayStart,
+                    newState = "scheduled"
+                )
+            }
+            "weekdays" -> {
+                val nextWeekdayStart = calculateNextWeekdayStart(sequence.startTime, sequence.selectedWeekdays, now)
+                NextOccurrenceResult(
+                    targetTimeMs = nextWeekdayStart,
+                    occurrenceIndex = 0,
+                    isCompleted = false,
+                    newStartTimeMs = nextWeekdayStart,
+                    newState = "scheduled"
+                )
+            }
+            "continuous" -> {
+                val totalDuration = intervalMs * sequence.totalOccurrences
+                var newStart = sequence.startTime
+                while (newStart + (sequence.totalOccurrences - 1) * intervalMs <= now) {
+                    newStart += totalDuration
+                }
+                var contIdx = 0
+                var contTarget: Long? = null
+                while (contIdx < sequence.totalOccurrences) {
+                    val occ = newStart + (contIdx * intervalMs)
+                    if (occ > now) {
+                        contTarget = occ
+                        break
+                    }
+                    contIdx++
+                }
+                NextOccurrenceResult(
+                    targetTimeMs = contTarget,
+                    occurrenceIndex = contIdx,
+                    isCompleted = false,
+                    newStartTimeMs = newStart,
+                    newState = "scheduled"
+                )
+            }
+            else -> {
+                NextOccurrenceResult(
+                    targetTimeMs = null,
+                    occurrenceIndex = sequence.totalOccurrences,
+                    isCompleted = true,
+                    newStartTimeMs = null,
+                    newState = "completed"
+                )
+            }
+        }
+    }
+
     fun scheduleSequence(context: Context, sequence: NativeAlarmSequence) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val requestCode = sequence.id.hashCode()
 
-        if (!sequence.enabled || sequence.state == "completed") {
-            cancelAlarm(context, sequence.id)
-            return
-        }
-
         val now = System.currentTimeMillis()
-        var currentIdx = sequence.currentOccurrenceIndex
-        var targetTime = sequence.snoozedUntil
+        val calc = computeNextOccurrence(sequence, now)
 
-        if (targetTime == null || targetTime <= now) {
-            val intervalMs = sequence.intervalDurationMs()
-
-            // Find next future occurrence in current sequence
-            while (currentIdx < sequence.totalOccurrences) {
-                val occTime = sequence.startTime + (currentIdx * intervalMs)
-                if (occTime > now) {
-                    targetTime = occTime
-                    break
-                }
-                currentIdx++
-            }
-
-            // If all occurrences are in the past, handle repetition
-            if (targetTime == null || targetTime <= now) {
-                when (sequence.repetitionMode) {
-                    "one_time" -> {
-                        NativeStorage.updateAlarm(
-                            context,
-                            sequence.copy(
-                                enabled = false,
-                                state = "completed",
-                                nextTriggerTime = null
-                            )
-                        )
-                        cancelAlarm(context, sequence.id)
-                        return
-                    }
-                    "daily" -> {
-                        val nextDayStart = calculateNextDailyStart(sequence.startTime, now)
-                        targetTime = nextDayStart
-                        currentIdx = 0
-                        NativeStorage.updateAlarm(
-                            context,
-                            sequence.copy(
-                                startTime = nextDayStart,
-                                currentOccurrenceIndex = 0,
-                                nextTriggerTime = targetTime
-                            )
-                        )
-                    }
-                    "weekdays" -> {
-                        val nextWeekdayStart = calculateNextWeekdayStart(sequence.startTime, sequence.selectedWeekdays, now)
-                        targetTime = nextWeekdayStart
-                        currentIdx = 0
-                        NativeStorage.updateAlarm(
-                            context,
-                            sequence.copy(
-                                startTime = nextWeekdayStart,
-                                currentOccurrenceIndex = 0,
-                                nextTriggerTime = targetTime
-                            )
-                        )
-                    }
-                    "continuous" -> {
-                        val totalDuration = intervalMs * sequence.totalOccurrences
-                        var newStart = sequence.startTime
-                        while (newStart + (sequence.totalOccurrences - 1) * intervalMs <= now) {
-                            newStart += totalDuration
-                        }
-                        currentIdx = 0
-                        while (currentIdx < sequence.totalOccurrences) {
-                            val occ = newStart + (currentIdx * intervalMs)
-                            if (occ > now) {
-                                targetTime = occ
-                                break
-                            }
-                            currentIdx++
-                        }
-                        NativeStorage.updateAlarm(
-                            context,
-                            sequence.copy(
-                                startTime = newStart,
-                                currentOccurrenceIndex = currentIdx,
-                                nextTriggerTime = targetTime
-                            )
-                        )
-                    }
-                }
-            }
-        }
-
-        if (targetTime == null || targetTime <= now) {
+        if (calc.isCompleted || calc.targetTimeMs == null) {
+            NativeStorage.updateAlarm(
+                context,
+                sequence.copy(
+                    enabled = false,
+                    state = "completed",
+                    nextTriggerTime = null
+                )
+            )
+            cancelAlarm(context, sequence.id)
+            AlarmLogger.log(context, "ALARM_SEQUENCE_COMPLETED", sequence.id, "Occurrences finished")
+            Log.d(TAG, "Sequence ${sequence.name} finished or disabled, canceling schedule")
             return
         }
+
+        val targetTime = calc.targetTimeMs
+        val updatedSeq = sequence.copy(
+            startTime = calc.newStartTimeMs ?: sequence.startTime,
+            currentOccurrenceIndex = calc.occurrenceIndex,
+            nextTriggerTime = targetTime,
+            state = calc.newState
+        )
 
         // Persist computed target time and occurrence index
-        NativeStorage.updateAlarm(
-            context,
-            sequence.copy(
-                currentOccurrenceIndex = currentIdx,
-                nextTriggerTime = targetTime,
-                state = "scheduled"
-            )
-        )
+        NativeStorage.updateAlarm(context, updatedSeq)
 
         val intent = Intent(context, AlarmReceiver::class.java).apply {
             action = AlarmReceiver.ACTION_TRIGGER_ALARM
             putExtra(AlarmReceiver.EXTRA_ALARM_ID, sequence.id)
             putExtra(AlarmReceiver.EXTRA_ALARM_NAME, sequence.name)
-            putExtra(AlarmReceiver.EXTRA_OCCURRENCE_INDEX, currentIdx)
+            putExtra(AlarmReceiver.EXTRA_OCCURRENCE_INDEX, calc.occurrenceIndex)
             putExtra(AlarmReceiver.EXTRA_TOTAL_OCCURRENCES, sequence.totalOccurrences)
             putExtra(AlarmReceiver.EXTRA_SOUND, sequence.sound)
             putExtra(AlarmReceiver.EXTRA_VIBRATION, sequence.vibration)
@@ -160,22 +208,26 @@ object AlarmScheduler {
         )
 
         try {
-            if (canScheduleExact(context)) {
+            val exactGranted = canScheduleExact(context)
+            if (exactGranted) {
                 // setAlarmClock provides maximum reliability and displays standard system clock icon
                 alarmManager.setAlarmClock(
                     AlarmManager.AlarmClockInfo(targetTime, showPendingIntent),
                     pendingIntent
                 )
-                Log.d(TAG, "Scheduled alarm clock for ${sequence.name} (step ${currentIdx + 1}) at $targetTime")
+                AlarmLogger.log(context, "ALARM_SCHEDULED_EXACT_CLOCK", sequence.id, "Target: $targetTime, Occ: ${calc.occurrenceIndex + 1}/${sequence.totalOccurrences}")
+                Log.d(TAG, "Scheduled alarm clock for ${sequence.name} (occurrence ${calc.occurrenceIndex + 1} of ${sequence.totalOccurrences}) at $targetTime")
             } else {
                 alarmManager.setExactAndAllowWhileIdle(
                     AlarmManager.RTC_WAKEUP,
                     targetTime,
                     pendingIntent
                 )
+                AlarmLogger.log(context, "ALARM_SCHEDULED_WHILE_IDLE", sequence.id, "Target: $targetTime")
                 Log.d(TAG, "Scheduled setExactAndAllowWhileIdle for ${sequence.name} at $targetTime")
             }
         } catch (e: SecurityException) {
+            AlarmLogger.log(context, "ALARM_SCHEDULE_INEXACT_FALLBACK", sequence.id, e.message)
             Log.e(TAG, "SecurityException scheduling exact alarm: ${e.message}")
             alarmManager.set(AlarmManager.RTC_WAKEUP, targetTime, pendingIntent)
         }
@@ -196,11 +248,13 @@ object AlarmScheduler {
         )
         alarmManager.cancel(pendingIntent)
         pendingIntent.cancel()
+        AlarmLogger.log(context, "ALARM_CANCELED", alarmId)
         Log.d(TAG, "Canceled alarm $alarmId")
     }
 
     fun rescheduleAll(context: Context) {
         val all = NativeStorage.getAllAlarms(context)
+        AlarmLogger.log(context, "ALARMS_RESCHEDULED_ALL", null, "Count: ${all.size}")
         Log.d(TAG, "Rescheduling ${all.size} alarm sequences")
         for (alarm in all) {
             if (alarm.enabled && alarm.state != "completed") {
@@ -209,7 +263,7 @@ object AlarmScheduler {
         }
     }
 
-    private fun calculateNextDailyStart(origStartMs: Long, nowMs: Long): Long {
+    fun calculateNextDailyStart(origStartMs: Long, nowMs: Long): Long {
         val origCal = Calendar.getInstance().apply { timeInMillis = origStartMs }
         val targetHour = origCal.get(Calendar.HOUR_OF_DAY)
         val targetMinute = origCal.get(Calendar.MINUTE)
@@ -228,7 +282,7 @@ object AlarmScheduler {
         return candidate.timeInMillis
     }
 
-    private fun calculateNextWeekdayStart(origStartMs: Long, selectedWeekdays: List<Int>, nowMs: Long): Long {
+    fun calculateNextWeekdayStart(origStartMs: Long, selectedWeekdays: List<Int>, nowMs: Long): Long {
         val origCal = Calendar.getInstance().apply { timeInMillis = origStartMs }
         val targetHour = origCal.get(Calendar.HOUR_OF_DAY)
         val targetMinute = origCal.get(Calendar.MINUTE)
@@ -256,4 +310,3 @@ object AlarmScheduler {
         return origStartMs + 86400 * 1000L
     }
 }
-

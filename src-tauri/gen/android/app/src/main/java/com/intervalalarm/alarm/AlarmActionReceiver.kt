@@ -19,8 +19,8 @@ class AlarmActionReceiver : BroadcastReceiver() {
 
         Log.d(TAG, "Received action ${intent.action} for alarm $alarmId")
 
-        // Stop ringtone immediately
-        RingtonePlayer.stop()
+        // Stop foreground playback service and audio focus immediately
+        AlarmPlaybackService.stop(context)
 
         // Clear notification
         if (notificationId != 0) {
@@ -40,6 +40,7 @@ class AlarmActionReceiver : BroadcastReceiver() {
                 )
                 NativeStorage.updateAlarm(context, updated)
                 AlarmScheduler.scheduleSequence(context, updated)
+                AlarmLogger.log(context, "ALARM_ACTION_DISMISSED", alarmId, "Next occurrence index: $nextIdx")
             }
             ACTION_SNOOZE -> {
                 val snoozeMinutes = intent.getIntExtra(AlarmReceiver.EXTRA_SNOOZE_MINUTES, 10)
@@ -51,8 +52,8 @@ class AlarmActionReceiver : BroadcastReceiver() {
                 )
                 NativeStorage.updateAlarm(context, updated)
                 AlarmScheduler.scheduleSequence(context, updated)
+                AlarmLogger.log(context, "ALARM_ACTION_SNOOZED", alarmId, "Snoozed for ${snoozeMinutes}m until $snoozeTime")
             }
         }
     }
 }
-

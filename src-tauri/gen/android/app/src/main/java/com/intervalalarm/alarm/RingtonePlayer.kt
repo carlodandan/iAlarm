@@ -2,6 +2,7 @@ package com.intervalalarm.alarm
 
 import android.content.Context
 import android.media.AudioAttributes
+import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.MediaPlayer
 import android.media.Ringtone
@@ -18,7 +19,62 @@ object RingtonePlayer {
     private var mediaPlayer: MediaPlayer? = null
     private var fallbackRingtone: Ringtone? = null
     private var vibrator: Vibrator? = null
+    private var audioManager: AudioManager? = null
+    private var focusRequest: AudioFocusRequest? = null
     private var isPlaying = false
+    private var isPausedForFocus = false
+
+    private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
+        Log.d(TAG, "Audio focus changed: $focusChange")
+        when (focusChange) {
+            AudioManager.AUDIOFOCUS_LOSS -> {
+                Log.d(TAG, "Audio focus lost permanently (e.g. phone call). Pausing alarm tone.")
+                pausePlayback()
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                Log.d(TAG, "Audio focus lost transiently. Pausing alarm tone.")
+                pausePlayback()
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                Log.d(TAG, "Audio focus ducking requested.")
+                try {
+                    mediaPlayer?.setVolume(0.2f, 0.2f)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error ducking volume: ${e.message}")
+                }
+            }
+            AudioManager.AUDIOFOCUS_GAIN -> {
+                Log.d(TAG, "Audio focus regained. Resuming alarm tone at full volume.")
+                try {
+                    mediaPlayer?.setVolume(1.0f, 1.0f)
+                } catch (ignored: Exception) {}
+                resumePlayback()
+            }
+        }
+    }
+
+    private fun pausePlayback() {
+        if (!isPlaying || isPausedForFocus) return
+        try {
+            if (mediaPlayer?.isPlaying == true) {
+                mediaPlayer?.pause()
+                isPausedForFocus = true
+            }
+            fallbackRingtone?.stop()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error pausing playback: ${e.message}")
+        }
+    }
+
+    private fun resumePlayback() {
+        if (!isPlaying || !isPausedForFocus) return
+        try {
+            mediaPlayer?.start()
+            isPausedForFocus = false
+        } catch (e: Exception) {
+            Log.e(TAG, "Error resuming playback: ${e.message}")
+        }
+    }
 
     @Synchronized
     fun start(context: Context, soundNameOrUri: String?, enableVibration: Boolean) {
@@ -27,18 +83,43 @@ object RingtonePlayer {
             return
         }
         isPlaying = true
+        isPausedForFocus = false
 
         try {
-            val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            audioManager = am
 
             // Ensure alarm audio stream is audible (prevent silent/low alarm bug)
-            val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM)
-            val currentVol = audioManager.getStreamVolume(AudioManager.STREAM_ALARM)
+            val maxVol = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+            val currentVol = am.getStreamVolume(AudioManager.STREAM_ALARM)
             if (currentVol < (maxVol * 0.7).toInt()) {
-                audioManager.setStreamVolume(
+                am.setStreamVolume(
                     AudioManager.STREAM_ALARM,
                     (maxVol * 0.85).toInt(),
                     0
+                )
+            }
+
+            // Request Audio Focus
+            val audioAttributes = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ALARM)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .setFlags(AudioAttributes.FLAG_AUDIBILITY_ENFORCED)
+                .build()
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val req = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE)
+                    .setAudioAttributes(audioAttributes)
+                    .setOnAudioFocusChangeListener(audioFocusChangeListener)
+                    .build()
+                focusRequest = req
+                am.requestAudioFocus(req)
+            } else {
+                @Suppress("DEPRECATION")
+                am.requestAudioFocus(
+                    audioFocusChangeListener,
+                    AudioManager.STREAM_ALARM,
+                    AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE
                 )
             }
 
@@ -63,13 +144,7 @@ object RingtonePlayer {
                 if (alarmUri != null) {
                     setDataSource(context, alarmUri)
                 }
-                setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_ALARM)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                        .setFlags(AudioAttributes.FLAG_AUDIBILITY_ENFORCED)
-                        .build()
-                )
+                setAudioAttributes(audioAttributes)
                 setVolume(1.0f, 1.0f)
                 isLooping = true
                 prepare()
@@ -127,6 +202,7 @@ object RingtonePlayer {
     fun stop() {
         if (!isPlaying) return
         isPlaying = false
+        isPausedForFocus = false
 
         try {
             mediaPlayer?.stop()
@@ -150,6 +226,22 @@ object RingtonePlayer {
             Log.e(TAG, "Error stopping vibrator: ${e.message}")
         }
 
-        Log.d(TAG, "Ringtone and vibration stopped")
+        // Abandon audio focus
+        try {
+            audioManager?.let { am ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    focusRequest?.let { am.abandonAudioFocusRequest(it) }
+                } else {
+                    @Suppress("DEPRECATION")
+                    am.abandonAudioFocus(audioFocusChangeListener)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error abandoning audio focus: ${e.message}")
+        }
+        focusRequest = null
+        audioManager = null
+
+        Log.d(TAG, "Ringtone, vibration, and audio focus stopped")
     }
 }

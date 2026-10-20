@@ -2,7 +2,6 @@ package com.intervalalarm.alarm
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -11,7 +10,6 @@ import android.media.RingtoneManager
 import android.os.Build
 import android.os.PowerManager
 import android.util.Log
-import androidx.core.app.NotificationCompat
 
 class AlarmReceiver : BroadcastReceiver() {
     companion object {
@@ -41,22 +39,46 @@ class AlarmReceiver : BroadcastReceiver() {
         val snoozeMinutes = intent.getIntExtra(EXTRA_SNOOZE_MINUTES, 10)
 
         Log.d(TAG, "Alarm triggered: $alarmName (Occurrence ${occurrenceIndex + 1} of $totalOccurrences)")
+        AlarmLogger.log(context, "ALARM_DELIVERED", alarmId, "Name: $alarmName, Occ: ${occurrenceIndex + 1}/$totalOccurrences")
 
-        // Wake and turn screen ON using SCREEN_BRIGHT_WAKE_LOCK and ACQUIRE_CAUSES_WAKEUP
+        // Wake screen ON using SCREEN_BRIGHT_WAKE_LOCK and ACQUIRE_CAUSES_WAKEUP
         val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
         @Suppress("DEPRECATION")
         val wakeLock = powerManager.newWakeLock(
             PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP or PowerManager.ON_AFTER_RELEASE,
             "IntervalAlarm:AlarmReceiverWakeLock"
         )
-        wakeLock.acquire(3 * 60 * 1000L) // 3 minutes
+        wakeLock.acquire(60 * 1000L) // 60 seconds hand-off to Foreground Service
 
         // Ensure Notification Channel exists
         createNotificationChannel(context)
 
         val notificationId = NOTIFICATION_ID_BASE + (alarmId.hashCode() % 1000)
 
-        // Full-screen Activity Intent
+        // Mark alarm state as ringing in persistent storage
+        try {
+            val seq = NativeStorage.getAlarmById(context, alarmId)
+            if (seq != null) {
+                NativeStorage.updateAlarm(context, seq.copy(state = "ringing"))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error updating alarm state to ringing: ${e.message}")
+        }
+
+        // Delegate continuous ringing and audio focus to Foreground Service
+        AlarmPlaybackService.start(
+            context = context,
+            alarmId = alarmId,
+            alarmName = alarmName,
+            occurrenceIndex = occurrenceIndex,
+            totalOccurrences = totalOccurrences,
+            sound = sound,
+            vibration = vibration,
+            snoozeMinutes = snoozeMinutes,
+            notificationId = notificationId
+        )
+
+        // Launch full-screen ringing activity
         val activityIntent = Intent(context, AlarmRingingActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or
                     Intent.FLAG_ACTIVITY_CLEAR_TOP or
@@ -70,65 +92,6 @@ class AlarmReceiver : BroadcastReceiver() {
             putExtra("notification_id", notificationId)
         }
 
-        val fullScreenPendingIntent = PendingIntent.getActivity(
-            context,
-            notificationId,
-            activityIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        // Action: Dismiss
-        val dismissIntent = Intent(context, AlarmActionReceiver::class.java).apply {
-            action = AlarmActionReceiver.ACTION_DISMISS
-            putExtra(EXTRA_ALARM_ID, alarmId)
-            putExtra("notification_id", notificationId)
-        }
-        val dismissPendingIntent = PendingIntent.getBroadcast(
-            context,
-            notificationId + 1,
-            dismissIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        // Action: Snooze
-        val snoozeIntent = Intent(context, AlarmActionReceiver::class.java).apply {
-            action = AlarmActionReceiver.ACTION_SNOOZE
-            putExtra(EXTRA_ALARM_ID, alarmId)
-            putExtra(EXTRA_SNOOZE_MINUTES, snoozeMinutes)
-            putExtra("notification_id", notificationId)
-        }
-        val snoozePendingIntent = PendingIntent.getBroadcast(
-            context,
-            notificationId + 2,
-            snoozeIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val alarmSoundUri = RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_ALARM)
-            ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-
-        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-            .setContentTitle(alarmName)
-            .setContentText("Occurrence ${occurrenceIndex + 1} of $totalOccurrences is ringing")
-            .setPriority(NotificationCompat.PRIORITY_MAX)
-            .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setAutoCancel(false)
-            .setOngoing(true)
-            .setSound(alarmSoundUri)
-            .setContentIntent(fullScreenPendingIntent)
-            .setFullScreenIntent(fullScreenPendingIntent, true)
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Dismiss", dismissPendingIntent)
-            .addAction(android.R.drawable.ic_popup_sync, "Snooze (${snoozeMinutes}m)", snoozePendingIntent)
-
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(notificationId, builder.build())
-
-        // Start ringtone and vibration immediately
-        RingtonePlayer.start(context, sound, vibration)
-
-        // Also launch activity directly
         try {
             context.startActivity(activityIntent)
         } catch (e: Exception) {

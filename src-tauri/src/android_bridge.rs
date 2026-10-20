@@ -126,4 +126,38 @@ impl AndroidBridge {
             Ok(())
         }
     }
+
+    pub fn get_alarm_logs(&self) -> Result<String, String> {
+        #[cfg(target_os = "android")]
+        {
+            let res = self.handle
+                .run_mobile_plugin::<serde_json::Value>(
+                    "getAlarmLogs",
+                    serde_json::json!({}),
+                )
+                .map_err(|e| e.to_string())?;
+            Ok(res.get("logs").and_then(|v| v.as_str()).unwrap_or("[]").to_string())
+        }
+        #[cfg(not(target_os = "android"))]
+        {
+            Ok("[]".into())
+        }
+    }
+
+    pub fn clear_alarm_logs(&self) -> Result<(), String> {
+        #[cfg(target_os = "android")]
+        {
+            self.handle
+                .run_mobile_plugin::<serde_json::Value>(
+                    "clearAlarmLogs",
+                    serde_json::json!({}),
+                )
+                .map(|_| ())
+                .map_err(|e| e.to_string())
+        }
+        #[cfg(not(target_os = "android"))]
+        {
+            Ok(())
+        }
+    }
 }

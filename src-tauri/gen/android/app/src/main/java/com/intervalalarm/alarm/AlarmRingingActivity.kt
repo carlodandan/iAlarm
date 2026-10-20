@@ -163,6 +163,7 @@ class AlarmRingingActivity : Activity() {
     }
 
     private fun dismissAlarm() {
+        AlarmPlaybackService.stop(this)
         RingtonePlayer.stop()
         clearNotification()
 
@@ -184,6 +185,7 @@ class AlarmRingingActivity : Activity() {
     }
 
     private fun snoozeAlarm() {
+        AlarmPlaybackService.stop(this)
         RingtonePlayer.stop()
         clearNotification()
 
@@ -212,6 +214,7 @@ class AlarmRingingActivity : Activity() {
     }
 
     override fun onDestroy() {
+        AlarmPlaybackService.stop(this)
         RingtonePlayer.stop()
         super.onDestroy()
     }
