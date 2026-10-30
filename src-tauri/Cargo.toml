@@ -1,6 +1,6 @@
 [package]
 name = "ialarm"
-version = "0.1.1"
+version = "0.1.2"
 description = "An interactive alarm where you can set your own customize interval time."
 authors = ["Carlo Dandan"]
 edition = "2024"
