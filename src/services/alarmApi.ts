@@ -100,8 +100,9 @@ export function playTonePreview(presetName: string): number {
     }
   }
 
-  // 2. If running on native Android, test tone via native RingtonePlayer
-  if (IS_TAURI && typeof navigator !== "undefined" && /android/i.test(navigator.userAgent)) {
+  // 2. If running on native Android, test non-legacy tone (e.g. device default) via native RingtonePlayer
+  const isLegacyPreset = LegacyPresets.some((p) => p.id === presetName);
+  if (!isLegacyPreset && IS_TAURI && typeof navigator !== "undefined" && /android/i.test(navigator.userAgent)) {
     invoke("test_tone", { tone: presetName, vibration: false }).catch(() => {});
     return previewId;
   }

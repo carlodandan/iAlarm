@@ -133,7 +133,9 @@ export const CreateAlarmModal: React.FC<CreateAlarmModalProps> = ({
   useEffect(() => {
     return () => {
       if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
-      stopTonePreview();
+      if (previewIdRef.current !== null) {
+        stopTonePreview(previewIdRef.current);
+      }
     };
   }, []);
 

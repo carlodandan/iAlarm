@@ -64,11 +64,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   };
 
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previewIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     return () => {
       if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
-      stopTonePreview();
+      if (previewIdRef.current !== null) {
+        stopTonePreview(previewIdRef.current);
+      }
     };
   }, []);
 
@@ -80,9 +83,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
     if (isPlayingAudio) {
       stopTonePreview();
+      previewIdRef.current = null;
       setIsPlayingAudio(false);
     } else {
-      playTonePreview(settings.default_sound || "Aura Dawn");
+      const id = playTonePreview(settings.default_sound || "Aura Dawn");
+      previewIdRef.current = id;
       setIsPlayingAudio(true);
       previewTimerRef.current = setTimeout(() => {
         setIsPlayingAudio(false);
