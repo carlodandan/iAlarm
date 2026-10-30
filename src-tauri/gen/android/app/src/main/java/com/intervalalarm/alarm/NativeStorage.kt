@@ -77,7 +77,7 @@ object NativeStorage {
                         totalOccurrences = obj.optInt("total_occurrences", 4),
                         repetitionMode = obj.optString("repetition_mode", "one_time"),
                         selectedWeekdays = weekdays,
-                        sound = obj.optString("sound", "Aura Dawn"),
+                        sound = obj.optString("sound", "best_android_rington"),
                         vibration = obj.optBoolean("vibration", true),
                         snoozeMinutes = obj.optInt("snooze_duration_minutes", 10),
                         snoozeMaxCount = obj.optInt("snooze_max_count", 3),

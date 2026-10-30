@@ -3,7 +3,6 @@ import {
   AlarmSequence,
   AppSettings,
   CreateAlarmPayload,
-  DeviceRingtone,
   IntervalUnit,
   RepetitionMode,
   SchedulePreviewItem,
@@ -74,10 +73,11 @@ export const CreateAlarmModal: React.FC<CreateAlarmModalProps> = ({
   const [selectedWeekdays, setSelectedWeekdays] = useState<number[]>(
     initialAlarm?.selected_weekdays?.length ? initialAlarm.selected_weekdays : [1, 2, 3, 4, 5]
   );
-  const [sound, setSound] = useState(initialAlarm?.sound || "Device Default");
-  const [deviceRingtone, setDeviceRingtone] = useState<DeviceRingtone>({
-    title: "System Default Alarm Tone",
-    uri: "",
+  const [sound, setSound] = useState(() => {
+    if (initialAlarm?.sound && !initialAlarm.sound.startsWith("Device Default")) {
+      return initialAlarm.sound;
+    }
+    return settings.default_sound || CustomRingtones[0].id;
   });
   const [vibration, setVibration] = useState(initialAlarm?.vibration ?? settings.default_vibration ?? true);
   const [snoozeMinutes, setSnoozeMinutes] = useState(initialAlarm?.snooze_duration_minutes || settings.default_snooze_minutes || 10);
@@ -86,17 +86,6 @@ export const CreateAlarmModal: React.FC<CreateAlarmModalProps> = ({
   const [previewItems, setPreviewItems] = useState<SchedulePreviewItem[]>([]);
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    AlarmApi.getDeviceRingtone().then((dr) => {
-      if (dr && dr.title) {
-        setDeviceRingtone(dr);
-        if (!initialAlarm) {
-          setSound(`Device Default: ${dr.title}`);
-        }
-      }
-    });
-  }, [initialAlarm]);
 
   // Compute calculated anchor start timestamp
   const calculateStartTimeMs = () => {
@@ -738,9 +727,6 @@ export const CreateAlarmModal: React.FC<CreateAlarmModalProps> = ({
                     onChange={(e) => setSound(e.target.value)}
                     className="bg-transparent text-sm text-[#e3e2e6] font-medium outline-none flex-1 cursor-pointer"
                   >
-                    <option value={`Device Default: ${deviceRingtone.title}`} className="bg-[#1f1f23] text-[#40e17e] font-semibold">
-                      📱 Device Default: {deviceRingtone.title}
-                    </option>
                     <optgroup label="Custom Ringtones" className="bg-[#1b1b1f] text-[#c8bfff] font-bold">
                       {CustomRingtones.map((sp) => (
                         <option key={sp.id} value={sp.id} className="bg-[#1f1f23] text-[#e3e2e6] font-normal">

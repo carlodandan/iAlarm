@@ -86,7 +86,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       previewIdRef.current = null;
       setIsPlayingAudio(false);
     } else {
-      const id = playTonePreview(settings.default_sound || "Aura Dawn");
+      const id = playTonePreview(settings.default_sound || "best_android_rington");
       previewIdRef.current = id;
       setIsPlayingAudio(true);
       previewTimerRef.current = setTimeout(() => {

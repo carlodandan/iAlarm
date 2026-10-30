@@ -79,7 +79,7 @@ object RingtonePlayer {
     }
 
     fun resolveRawResourceId(context: Context, soundName: String?): Int {
-        if (soundName.isNullOrBlank()) return 0
+        if (soundName.isNullOrBlank()) return R.raw.best_android_rington
         val clean = soundName.trim().lowercase()
             .removePrefix("custom:")
             .replace(" ", "_")

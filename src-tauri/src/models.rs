@@ -129,7 +129,7 @@ impl Default for AppSettings {
             default_snooze_minutes: 10,
             default_vibration: true,
             default_gradual_volume: true,
-            default_sound: "Aura Dawn".to_string(),
+            default_sound: "best_android_rington".to_string(),
             battery_optimization_unrestricted: false,
             exact_alarm_permission_granted: false,
             full_screen_intent_allowed: false,
