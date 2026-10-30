@@ -3,6 +3,7 @@ package com.intervalalarm.alarm
 import android.app.Activity
 import android.app.NotificationManager
 import android.content.Context
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Build
@@ -22,6 +23,12 @@ class AlarmRingingActivity : Activity() {
     private var notificationId: Int = 0
     private var snoozeMinutes: Int = 10
 
+    private var titleView: TextView? = null
+    private var occurrenceView: TextView? = null
+    private var clockView: TextView? = null
+    private var dateView: TextView? = null
+    private var snoozeBtn: Button? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -39,13 +46,6 @@ class AlarmRingingActivity : Activity() {
             WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
             WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
         )
-
-        alarmId = intent.getStringExtra(AlarmReceiver.EXTRA_ALARM_ID)
-        val alarmName = intent.getStringExtra(AlarmReceiver.EXTRA_ALARM_NAME) ?: "Interval Alarm"
-        val occurrenceIndex = intent.getIntExtra(AlarmReceiver.EXTRA_OCCURRENCE_INDEX, 0)
-        val totalOccurrences = intent.getIntExtra(AlarmReceiver.EXTRA_TOTAL_OCCURRENCES, 1)
-        snoozeMinutes = intent.getIntExtra(AlarmReceiver.EXTRA_SNOOZE_MINUTES, 10)
-        notificationId = intent.getIntExtra("notification_id", 0)
 
         // Build premium native dark view matching Stitch design
         val rootLayout = LinearLayout(this).apply {
@@ -71,8 +71,7 @@ class AlarmRingingActivity : Activity() {
         rootLayout.addView(subtitleView)
 
         // Alarm Title
-        val titleView = TextView(this).apply {
-            text = alarmName
+        titleView = TextView(this).apply {
             setTextColor(Color.WHITE)
             textSize = 26f
             typeface = Typeface.DEFAULT_BOLD
@@ -82,8 +81,7 @@ class AlarmRingingActivity : Activity() {
         rootLayout.addView(titleView)
 
         // Occurrence pill
-        val occurrenceView = TextView(this).apply {
-            text = "Occurrence ${occurrenceIndex + 1} of $totalOccurrences"
+        occurrenceView = TextView(this).apply {
             setTextColor(Color.parseColor("#40E17E"))
             textSize = 14f
             gravity = Gravity.CENTER
@@ -92,9 +90,7 @@ class AlarmRingingActivity : Activity() {
         rootLayout.addView(occurrenceView)
 
         // Digital Clock Time
-        val timeFormat = SimpleDateFormat("hh:mm a", Locale.getDefault())
-        val clockView = TextView(this).apply {
-            text = timeFormat.format(Date())
+        clockView = TextView(this).apply {
             setTextColor(Color.WHITE)
             textSize = 54f
             typeface = Typeface.create("sans-serif-light", Typeface.NORMAL)
@@ -103,9 +99,7 @@ class AlarmRingingActivity : Activity() {
         }
         rootLayout.addView(clockView)
 
-        val dateFormat = SimpleDateFormat("EEEE, MMMM d", Locale.getDefault())
-        val dateView = TextView(this).apply {
-            text = dateFormat.format(Date())
+        dateView = TextView(this).apply {
             setTextColor(Color.parseColor("#928F9D"))
             textSize = 14f
             gravity = Gravity.CENTER
@@ -143,8 +137,7 @@ class AlarmRingingActivity : Activity() {
         rootLayout.addView(dismissBtn)
 
         // Snooze Button
-        val snoozeBtn = Button(this).apply {
-            text = "Snooze (${snoozeMinutes}m)"
+        snoozeBtn = Button(this).apply {
             setTextColor(Color.WHITE)
             setBackgroundColor(Color.parseColor("#292A2D"))
             textSize = 15f
@@ -160,6 +153,35 @@ class AlarmRingingActivity : Activity() {
         rootLayout.addView(snoozeBtn)
 
         setContentView(rootLayout)
+
+        renderAlarm(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        renderAlarm(intent)
+    }
+
+    private fun renderAlarm(intent: Intent?) {
+        if (intent == null) return
+        alarmId = intent.getStringExtra(AlarmReceiver.EXTRA_ALARM_ID)
+        val alarmName = intent.getStringExtra(AlarmReceiver.EXTRA_ALARM_NAME) ?: "Interval Alarm"
+        val occurrenceIndex = intent.getIntExtra(AlarmReceiver.EXTRA_OCCURRENCE_INDEX, 0)
+        val totalOccurrences = intent.getIntExtra(AlarmReceiver.EXTRA_TOTAL_OCCURRENCES, 1)
+        snoozeMinutes = intent.getIntExtra(AlarmReceiver.EXTRA_SNOOZE_MINUTES, 10)
+        notificationId = intent.getIntExtra("notification_id", 0)
+
+        titleView?.text = alarmName
+        occurrenceView?.text = "Occurrence ${occurrenceIndex + 1} of $totalOccurrences"
+
+        val timeFormat = SimpleDateFormat("hh:mm a", Locale.getDefault())
+        clockView?.text = timeFormat.format(Date())
+
+        val dateFormat = SimpleDateFormat("EEEE, MMMM d", Locale.getDefault())
+        dateView?.text = dateFormat.format(Date())
+
+        snoozeBtn?.text = "Snooze (${snoozeMinutes}m)"
     }
 
     private fun dismissAlarm() {
@@ -214,8 +236,10 @@ class AlarmRingingActivity : Activity() {
     }
 
     override fun onDestroy() {
-        AlarmPlaybackService.stop(this)
-        RingtonePlayer.stop()
+        if (isFinishing) {
+            AlarmPlaybackService.stop(this)
+            RingtonePlayer.stop()
+        }
         super.onDestroy()
     }
 }

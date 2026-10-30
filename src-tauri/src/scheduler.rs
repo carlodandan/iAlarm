@@ -310,7 +310,7 @@ mod tests {
             total_occurrences: total,
             repetition_mode: mode,
             selected_weekdays: vec![1, 2, 3, 4, 5],
-            sound: "Aura Dawn".to_string(),
+            sound: "best_android_rington".to_string(),
             vibration: true,
             snooze_duration_minutes: 10,
             snooze_max_count: 3,

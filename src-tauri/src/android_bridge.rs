@@ -182,4 +182,39 @@ impl AndroidBridge {
             Ok(vec![])
         }
     }
+
+    pub fn test_tone(&self, tone: &str, vibration: bool) -> Result<(), String> {
+        #[cfg(target_os = "android")]
+        {
+            self.handle
+                .run_mobile_plugin::<serde_json::Value>(
+                    "testTone",
+                    serde_json::json!({ "tone": tone, "vibration": vibration }),
+                )
+                .map(|_| ())
+                .map_err(|e| e.to_string())
+        }
+        #[cfg(not(target_os = "android"))]
+        {
+            let _ = (tone, vibration);
+            Ok(())
+        }
+    }
+
+    pub fn stop_tone(&self) -> Result<(), String> {
+        #[cfg(target_os = "android")]
+        {
+            self.handle
+                .run_mobile_plugin::<serde_json::Value>(
+                    "stopTone",
+                    serde_json::json!({}),
+                )
+                .map(|_| ())
+                .map_err(|e| e.to_string())
+        }
+        #[cfg(not(target_os = "android"))]
+        {
+            Ok(())
+        }
+    }
 }

@@ -17,6 +17,8 @@ import android.util.Log
 object RingtonePlayer {
     private const val TAG = "RingtonePlayer"
     private var mediaPlayer: MediaPlayer? = null
+    private var previewPlayer: MediaPlayer? = null
+    private var previewVibrator: Vibrator? = null
     private var fallbackRingtone: Ringtone? = null
     private var vibrator: Vibrator? = null
     private var audioManager: AudioManager? = null
@@ -76,12 +78,113 @@ object RingtonePlayer {
         }
     }
 
+    fun resolveRawResourceId(context: Context, soundName: String?): Int {
+        if (soundName.isNullOrBlank()) return R.raw.best_android_rington
+        val clean = soundName.trim().lowercase()
+            .removePrefix("custom:")
+            .replace(" ", "_")
+            .replace("-", "_")
+
+        return when (clean) {
+            "best_android_rington" -> R.raw.best_android_rington
+            "dandadan_01" -> R.raw.dandadan_01
+            "detective_conan_01" -> R.raw.detective_conan_01
+            "gintama_01" -> R.raw.gintama_01
+            "jujutsu_kaisen_01" -> R.raw.jujutsu_kaisen_01
+            "mi_remix_miui12" -> R.raw.mi_remix_miui12
+            "nokia_android" -> R.raw.nokia_android
+            "one_piece_01" -> R.raw.one_piece_01
+            "one_piece_02" -> R.raw.one_piece_02
+            "one_piece_03" -> R.raw.one_piece_03
+            "oppo_calm" -> R.raw.oppo_calm
+            "samsung_galaxy_s11" -> R.raw.samsung_galaxy_s11
+            else -> context.resources.getIdentifier(clean, "raw", context.packageName)
+        }
+    }
+
+    @Synchronized
+    fun previewTone(context: Context, soundNameOrUri: String?, enableVibration: Boolean = false) {
+        stopPreview()
+        try {
+            val rawResId = resolveRawResourceId(context, soundNameOrUri)
+            val soundUri = if (rawResId != 0) {
+                Uri.parse("android.resource://${context.packageName}/$rawResId")
+            } else if (!soundNameOrUri.isNullOrEmpty() && soundNameOrUri.startsWith("content://")) {
+                Uri.parse(soundNameOrUri)
+            } else {
+                RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_ALARM)
+                    ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+            }
+
+            previewPlayer = MediaPlayer().apply {
+                setDataSource(context, soundUri)
+                setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ALARM)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+                )
+                setVolume(0.9f, 0.9f)
+                isLooping = false
+                setOnCompletionListener {
+                    stopPreview()
+                }
+                prepare()
+                start()
+            }
+            Log.d(TAG, "Started audio preview for: $soundNameOrUri")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error playing audio preview: ${e.message}")
+        }
+
+        if (enableVibration) {
+            try {
+                val vm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    val vManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+                    vManager.defaultVibrator
+                } else {
+                    @Suppress("DEPRECATION")
+                    context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+                }
+                previewVibrator = vm
+                val pattern = longArrayOf(0, 1000, 600, 1000, 600)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    previewVibrator?.vibrate(VibrationEffect.createWaveform(pattern, 0))
+                } else {
+                    @Suppress("DEPRECATION")
+                    previewVibrator?.vibrate(pattern, 0)
+                }
+                Log.d(TAG, "Started preview vibration pattern")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error starting preview vibration: ${e.message}")
+            }
+        }
+    }
+
+    @Synchronized
+    fun stopPreview() {
+        try {
+            previewPlayer?.stop()
+            previewPlayer?.release()
+            previewPlayer = null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error stopping preview player: ${e.message}")
+        }
+        try {
+            previewVibrator?.cancel()
+            previewVibrator = null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error stopping preview vibrator: ${e.message}")
+        }
+    }
+
     @Synchronized
     fun start(context: Context, soundNameOrUri: String?, enableVibration: Boolean) {
         if (isPlaying) {
-            Log.d(TAG, "Ringtone is already actively ringing")
-            return
+            Log.d(TAG, "Ringtone was already active; stopping previous to ensure clean alarm playback")
+            stop()
         }
+        stopPreview()
         isPlaying = true
         isPausedForFocus = false
 
@@ -123,34 +226,58 @@ object RingtonePlayer {
                 )
             }
 
-            // Resolve ringtone URI: check if specific URI was provided, otherwise use device default alarm ringtone
-            var alarmUri: Uri? = null
-            if (!soundNameOrUri.isNullOrEmpty() && (soundNameOrUri.startsWith("content://") || soundNameOrUri.startsWith("android.resource://"))) {
+            var played = false
+
+            // 1. Check if sound matches a bundled raw resource ringtone
+            val rawResId = resolveRawResourceId(context, soundNameOrUri)
+            if (rawResId != 0) {
                 try {
-                    alarmUri = Uri.parse(soundNameOrUri)
+                    val soundUri = Uri.parse("android.resource://${context.packageName}/$rawResId")
+                    mediaPlayer = MediaPlayer().apply {
+                        setDataSource(context, soundUri)
+                        setAudioAttributes(audioAttributes)
+                        setVolume(1.0f, 1.0f)
+                        isLooping = true
+                        prepare()
+                        start()
+                    }
+                    played = true
+                    Log.d(TAG, "Started MediaPlayer with custom raw ringtone: $soundNameOrUri (ID: $rawResId)")
                 } catch (e: Exception) {
-                    alarmUri = null
+                    Log.e(TAG, "Failed playing raw ringtone $soundNameOrUri: ${e.message}, falling back to system URI")
                 }
             }
 
-            if (alarmUri == null) {
-                alarmUri = RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_ALARM)
-                    ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-                    ?: RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_RINGTONE)
-                    ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-            }
-
-            mediaPlayer = MediaPlayer().apply {
-                if (alarmUri != null) {
-                    setDataSource(context, alarmUri)
+            // 2. Fall back to URI or Device Default Ringtone if raw resource was not played
+            if (!played) {
+                var alarmUri: Uri? = null
+                if (!soundNameOrUri.isNullOrEmpty() && (soundNameOrUri.startsWith("content://") || soundNameOrUri.startsWith("android.resource://"))) {
+                    try {
+                        alarmUri = Uri.parse(soundNameOrUri)
+                    } catch (e: Exception) {
+                        alarmUri = null
+                    }
                 }
-                setAudioAttributes(audioAttributes)
-                setVolume(1.0f, 1.0f)
-                isLooping = true
-                prepare()
-                start()
+
+                if (alarmUri == null) {
+                    alarmUri = RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_ALARM)
+                        ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                        ?: RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_RINGTONE)
+                        ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+                }
+
+                mediaPlayer = MediaPlayer().apply {
+                    if (alarmUri != null) {
+                        setDataSource(context, alarmUri)
+                    }
+                    setAudioAttributes(audioAttributes)
+                    setVolume(1.0f, 1.0f)
+                    isLooping = true
+                    prepare()
+                    start()
+                }
+                Log.d(TAG, "Started MediaPlayer with URI: $alarmUri")
             }
-            Log.d(TAG, "Started MediaPlayer with URI: $alarmUri")
         } catch (e: Exception) {
             Log.e(TAG, "MediaPlayer failed: ${e.message}, falling back to system Ringtone")
             try {

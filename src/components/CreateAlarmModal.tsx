@@ -1,14 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   AlarmSequence,
   AppSettings,
   CreateAlarmPayload,
-  DeviceRingtone,
   IntervalUnit,
   RepetitionMode,
   SchedulePreviewItem,
 } from "../types/alarm";
-import { AlarmApi, SoundPresets, playTonePreview, stopTonePreview } from "../services/alarmApi";
+import { AlarmApi, CustomRingtones, LegacyPresets, isAudioOwner, playTonePreview, stopTonePreview } from "../services/alarmApi";
 import {
   X,
   Check,
@@ -74,10 +73,11 @@ export const CreateAlarmModal: React.FC<CreateAlarmModalProps> = ({
   const [selectedWeekdays, setSelectedWeekdays] = useState<number[]>(
     initialAlarm?.selected_weekdays?.length ? initialAlarm.selected_weekdays : [1, 2, 3, 4, 5]
   );
-  const [sound, setSound] = useState(initialAlarm?.sound || "Device Default");
-  const [deviceRingtone, setDeviceRingtone] = useState<DeviceRingtone>({
-    title: "System Default Alarm Tone",
-    uri: "",
+  const [sound, setSound] = useState(() => {
+    if (initialAlarm?.sound && !initialAlarm.sound.startsWith("Device Default")) {
+      return initialAlarm.sound;
+    }
+    return settings.default_sound || CustomRingtones[0].id;
   });
   const [vibration, setVibration] = useState(initialAlarm?.vibration ?? settings.default_vibration ?? true);
   const [snoozeMinutes, setSnoozeMinutes] = useState(initialAlarm?.snooze_duration_minutes || settings.default_snooze_minutes || 10);
@@ -86,17 +86,6 @@ export const CreateAlarmModal: React.FC<CreateAlarmModalProps> = ({
   const [previewItems, setPreviewItems] = useState<SchedulePreviewItem[]>([]);
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    AlarmApi.getDeviceRingtone().then((dr) => {
-      if (dr && dr.title) {
-        setDeviceRingtone(dr);
-        if (!initialAlarm) {
-          setSound(`Device Default: ${dr.title}`);
-        }
-      }
-    });
-  }, [initialAlarm]);
 
   // Compute calculated anchor start timestamp
   const calculateStartTimeMs = () => {
@@ -127,20 +116,41 @@ export const CreateAlarmModal: React.FC<CreateAlarmModalProps> = ({
   }, [startHour, startMinute, isPM, intervalValue, intervalUnit, occurrences, settings.time_format]);
 
   // Clean up audio preview on unmount
+  const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previewIdRef = useRef<number | null>(null);
+
   useEffect(() => {
     return () => {
-      stopTonePreview();
+      if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+      if (previewIdRef.current !== null) {
+        stopTonePreview(previewIdRef.current);
+      }
     };
   }, []);
 
   const handleToggleSoundPreview = () => {
+    if (previewTimerRef.current) {
+      clearTimeout(previewTimerRef.current);
+      previewTimerRef.current = null;
+    }
+
     if (isPlayingPreview) {
       stopTonePreview();
+      previewIdRef.current = null;
       setIsPlayingPreview(false);
     } else {
-      playTonePreview(sound);
+      const id = playTonePreview(sound);
+      previewIdRef.current = id;
       setIsPlayingPreview(true);
-      setTimeout(() => setIsPlayingPreview(false), 2000);
+      previewTimerRef.current = setTimeout(() => {
+        if (previewIdRef.current !== null && isAudioOwner(previewIdRef.current)) {
+          stopTonePreview(previewIdRef.current);
+          setIsPlayingPreview(false);
+        } else if (previewIdRef.current !== null && !isAudioOwner(previewIdRef.current)) {
+          setIsPlayingPreview(false);
+        }
+        previewIdRef.current = null;
+      }, 3500);
     }
   };
 
@@ -313,23 +323,28 @@ export const CreateAlarmModal: React.FC<CreateAlarmModalProps> = ({
 
           {/* Big Time Card Display */}
           <div className="flex items-center justify-between bg-[#1f1f23] p-4 rounded-2xl border border-white/5">
-            <div className="flex items-baseline gap-1">
+            <div className="flex items-center">
               <input
                 type="number"
+                aria-label="Hour"
                 min={settings.time_format === "24h" ? 0 : 1}
                 max={settings.time_format === "24h" ? 23 : 12}
-                value={startHour}
-                onChange={(e) => setStartHour(parseInt(e.target.value) || 0)}
-                className="w-16 bg-transparent text-5xl font-light text-[#c8bfff] tracking-tight tabular-nums outline-none"
+                value={settings.time_format === "24h" ? startHour.toString().padStart(2, "0") : startHour}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  setStartHour(isNaN(val) ? 0 : val);
+                }}
+                className="w-14 text-right bg-transparent text-5xl font-light text-[#c8bfff] tracking-tight tabular-nums outline-none p-0 focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />
-              <span className="text-5xl font-light text-[#c8bfff]/50">:</span>
+              <span className="text-5xl font-light text-[#c8bfff]/50 select-none px-1 leading-none -translate-y-0.5">:</span>
               <input
                 type="number"
+                aria-label="Minute"
                 min={0}
                 max={59}
                 value={startMinute.toString().padStart(2, "0")}
                 onChange={(e) => setStartMinute(Math.min(59, Math.max(0, parseInt(e.target.value) || 0)))}
-                className="w-16 bg-transparent text-5xl font-light text-[#c8bfff] tracking-tight tabular-nums outline-none ml-1"
+                className="w-14 text-left bg-transparent text-5xl font-light text-[#c8bfff] tracking-tight tabular-nums outline-none p-0 focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />
             </div>
 
@@ -712,14 +727,20 @@ export const CreateAlarmModal: React.FC<CreateAlarmModalProps> = ({
                     onChange={(e) => setSound(e.target.value)}
                     className="bg-transparent text-sm text-[#e3e2e6] font-medium outline-none flex-1 cursor-pointer"
                   >
-                    <option value={`Device Default: ${deviceRingtone.title}`} className="bg-[#1f1f23] text-[#40e17e] font-semibold">
-                      📱 Device Default: {deviceRingtone.title}
-                    </option>
-                    {SoundPresets.map((sp) => (
-                      <option key={sp.id} value={sp.id} className="bg-[#1f1f23] text-[#e3e2e6]">
-                        {sp.name} — {sp.description}
-                      </option>
-                    ))}
+                    <optgroup label="Custom Ringtones" className="bg-[#1b1b1f] text-[#c8bfff] font-bold">
+                      {CustomRingtones.map((sp) => (
+                        <option key={sp.id} value={sp.id} className="bg-[#1f1f23] text-[#e3e2e6] font-normal">
+                          {sp.name} — {sp.description}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Ambient Presets" className="bg-[#1b1b1f] text-[#928f9d] font-bold">
+                      {LegacyPresets.map((sp) => (
+                        <option key={sp.id} value={sp.id} className="bg-[#1f1f23] text-[#e3e2e6] font-normal">
+                          {sp.name} — {sp.description}
+                        </option>
+                      ))}
+                    </optgroup>
                   </select>
                   <button
                     type="button"

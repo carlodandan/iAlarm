@@ -324,3 +324,19 @@ pub fn clear_alarm_logs(app: AppHandle) -> Result<(), String> {
     }
     Ok(())
 }
+
+#[tauri::command]
+pub fn test_tone(tone: String, vibration: Option<bool>, app: AppHandle) -> Result<(), String> {
+    if let Some(bridge) = app.try_state::<AndroidBridge>() {
+        return bridge.test_tone(&tone, vibration.unwrap_or(false));
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn stop_tone(app: AppHandle) -> Result<(), String> {
+    if let Some(bridge) = app.try_state::<AndroidBridge>() {
+        return bridge.stop_tone();
+    }
+    Ok(())
+}

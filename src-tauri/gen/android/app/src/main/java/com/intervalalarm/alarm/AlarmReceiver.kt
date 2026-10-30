@@ -25,7 +25,7 @@ class AlarmReceiver : BroadcastReceiver() {
         const val EXTRA_SNOOZE_MINUTES = "extra_snooze_minutes"
         const val EXTRA_TARGET_TIME = "extra_target_time"
 
-        const val CHANNEL_ID = "interval_alarm_high_channel"
+        const val CHANNEL_ID = "interval_alarm_alerts_v2"
         const val NOTIFICATION_ID_BASE = 9000
     }
 
@@ -89,8 +89,7 @@ class AlarmReceiver : BroadcastReceiver() {
         val activityIntent = Intent(context, AlarmRingingActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or
                     Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
-                    Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra(EXTRA_ALARM_ID, alarmId)
             putExtra(EXTRA_ALARM_NAME, alarmName)
             putExtra(EXTRA_OCCURRENCE_INDEX, occurrenceIndex)
@@ -99,16 +98,32 @@ class AlarmReceiver : BroadcastReceiver() {
             putExtra("notification_id", notificationId)
         }
 
-        try {
-            context.startActivity(activityIntent)
-        } catch (e: Exception) {
-            Log.e(TAG, "Direct activity launch fell back to fullScreenIntent: ${e.message}")
+        val mainAct = MainActivity.instance
+        if (mainAct != null && !mainAct.isFinishing && !mainAct.isDestroyed) {
+            mainAct.runOnUiThread {
+                try {
+                    mainAct.startActivity(activityIntent)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed launching AlarmRingingActivity from MainActivity: ${e.message}")
+                    try { context.startActivity(activityIntent) } catch (ignored: Exception) {}
+                }
+            }
+        } else {
+            try {
+                context.startActivity(activityIntent)
+            } catch (e: Exception) {
+                Log.e(TAG, "Direct activity launch fell back to fullScreenIntent: ${e.message}")
+            }
         }
     }
 
     private fun createNotificationChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            try {
+                notificationManager.deleteNotificationChannel("interval_alarm_high_channel")
+            } catch (ignored: Exception) {}
+
             val existing = notificationManager.getNotificationChannel(CHANNEL_ID)
             if (existing == null) {
                 val channel = NotificationChannel(
@@ -118,17 +133,8 @@ class AlarmReceiver : BroadcastReceiver() {
                 ).apply {
                     description = "Urgent alerts and lock-screen alarms for scheduled intervals"
                     setBypassDnd(true)
-                    enableVibration(true)
-                    val alarmUri = RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_ALARM)
-                        ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-                    setSound(
-                        alarmUri,
-                        AudioAttributes.Builder()
-                            .setUsage(AudioAttributes.USAGE_ALARM)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                            .setFlags(AudioAttributes.FLAG_AUDIBILITY_ENFORCED)
-                            .build()
-                    )
+                    enableVibration(false)
+                    setSound(null, null)
                     lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
                 }
                 notificationManager.createNotificationChannel(channel)

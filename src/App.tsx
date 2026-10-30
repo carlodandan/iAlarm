@@ -22,7 +22,7 @@ export function App() {
     default_snooze_minutes: 10,
     default_vibration: true,
     default_gradual_volume: true,
-    default_sound: "Aura Dawn",
+    default_sound: "best_android_rington",
     battery_optimization_unrestricted: true,
     exact_alarm_permission_granted: true,
     full_screen_intent_allowed: true,

@@ -1,6 +1,46 @@
+<div align="center">
+
+<img src="src/assets/interval_alarm_logo.svg" alt="iAlarm Logo" width="96" height="96" />
+
 # iAlarm (Interval Alarm)
 
-An offline-first Android utility built with Tauri 2, React 19, TypeScript, TailwindCSS v4, Rust, and native Kotlin integration.
+**Atomic, offline-first Android interval alarm utility with zero background battery drain.**
+
+[![React 19](https://img.shields.io/badge/React_19-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Tailwind CSS v4](https://img.shields.io/badge/Tailwind_CSS_v4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+[![Tauri v2](https://img.shields.io/badge/Tauri_v2-24C8D8?style=for-the-badge&logo=tauri&logoColor=white)](https://tauri.app/)
+[![Rust](https://img.shields.io/badge/Rust-DEA584?style=for-the-badge&logo=rust&logoColor=black)](https://www.rust-lang.org/)
+[![Android](https://img.shields.io/badge/Android_Kotlin-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://developer.android.com/)
+[![pnpm](https://img.shields.io/badge/pnpm-F69220?style=for-the-badge&logo=pnpm&logoColor=white)](https://pnpm.io/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-c8bfff?style=for-the-badge)](LICENSE)
+
+<p align="center">
+  <a href="#app-showcase">App Showcase</a> •
+  <a href="#key-features">Key Features</a> •
+  <a href="#technology-stack">Tech Stack</a> •
+  <a href="#getting-started">Getting Started</a> •
+  <a href="#building-the-android-apk">Build APK</a> •
+  <a href="#license">License</a>
+</p>
+
+</div>
+
+---
+
+## App Showcase
+
+<div align="center">
+
+| Home Overview | Sequence Configuration | Cadence & Sound Audition |
+|:---:|:---:|:---:|
+| <img src="images/home_page.png" width="260" alt="Home Overview Screen" /> | <img src="images/schedule_page_01.png" width="260" alt="Schedule Configuration Modal" /> | <img src="images/schedule_page_02.png" width="260" alt="Cadence Preview and Ringtone Selection" /> |
+
+</div>
+
+---
+
+## Overview
 
 Interval Alarm enables users to create a single alarm sequence that automatically schedules multiple occurrences at fixed intervals from a chosen anchor time, without requiring multiple alarms to be configured manually.
 
@@ -12,13 +52,13 @@ Interval Alarm enables users to create a single alarm sequence that automaticall
 
 ## Key Features
 
-- **Automated Fixed-Interval Scheduling**: Schedules occurrences based on the formula `occurrence(n) = start_time + (n * interval)`.
+- **Automated Fixed-Interval Scheduling**: Schedules occurrences deterministically based on the formula `occurrence(n) = start_time + (n * interval)`.
 - **Multi-Day and Midnight Rollover**: Sequences seamlessly traverse midnight and span multiple calendar days.
 - **Recurrence Modes**: Supports One-Time, Daily, Selected Weekdays, and Continuous sequence repetition.
-- **Native Android AlarmManager Integration**: Alarms are registered as exact alarm clocks via Android's `setAlarmClock` API, showing the system alarm clock icon and waking the device from Doze mode.
+- **Native Android AlarmManager Integration**: Alarms are registered as exact alarm clocks via Android's `setAlarmClock` API, displaying the system alarm icon and waking the device from Doze mode.
 - **Zero-WebView Background Dependency**: Active sequences are mirrored to Android `SharedPreferences`. If the application process is terminated or the phone reboots, alarms trigger and advance headlessly via native broadcast receivers.
 - **Lock-Screen Full-Screen Intent Presentation**: Uses `SCREEN_BRIGHT_WAKE_LOCK`, `ACQUIRE_CAUSES_WAKEUP`, and `setShowWhenLocked` to illuminate the screen and present a dismiss/snooze interface over the keyguard.
-- **Hardware Audio and Device Ringtone Detection**: Automatically detects the user's default device alarm ringtone and enforces audible volume on the `STREAM_ALARM` audio channel.
+- **Bundled Custom Ringtones & Haptics**: Ships with 12 built-in audio tracks (defaulting to *Best Android*) with synced haptic motor vibration patterns and fallback to system alarm ringtones.
 - **Isolated Snooze Architecture**: Snoozing creates a temporary occurrence without altering the master sequence interval grid.
 - **Downtime and Past-Occurrence Handling**: Expired occurrences from system downtime or battery depletion are skipped cleanly, targeting the next valid future occurrence.
 - **Circadian Luxury Interface**: Built with TailwindCSS v4 using a dark obsidian palette (`#121316`), electric lavender accents (`#c8bfff`), cadence emerald (`#40e17e`), and tabular digital clock readouts.
@@ -29,10 +69,10 @@ Interval Alarm enables users to create a single alarm sequence that automaticall
 
 | Layer | Technologies |
 |---|---|
-| **Frontend** | React 19, TypeScript, TailwindCSS v4, Vite, Lucide Icons |
-| **Desktop / Core Bridge** | Tauri 2 runtime, Rust, Chrono, UUID, atomic file persistence |
-| **Android Native** | Kotlin, `AlarmManager`, `BroadcastReceiver`, `WakeLock`, `NotificationManager`, `AudioAttributes` |
-| **Build & Toolchain** | Gradle 9.6.1, Android SDK (API 24 to 37), Android NDK 30, Rust Android target `aarch64-linux-android` |
+| **Frontend** | [React 19](https://react.dev/), [TypeScript](https://www.typescriptlang.org/), [TailwindCSS v4](https://tailwindcss.com/), [Vite](https://vitejs.dev/), [Lucide Icons](https://lucide.dev/) |
+| **Desktop / Core Bridge** | [Tauri 2](https://tauri.app/) runtime, [Rust](https://www.rust-lang.org/), `chrono`, `uuid`, atomic file persistence |
+| **Android Native** | [Kotlin](https://kotlinlang.org/), `AlarmManager`, `BroadcastReceiver`, `WakeLock`, `NotificationManager`, `AudioAttributes` |
+| **Package & Build Toolchain** | [pnpm](https://pnpm.io/) v9+, Gradle 9.6.1, Android SDK (API 24 to 35), Android NDK 30, Rust Android target `aarch64-linux-android` |
 
 ---
 
@@ -40,6 +80,10 @@ Interval Alarm enables users to create a single alarm sequence that automaticall
 
 ```text
 iAlarm/
+├── images/                         # Product and interface showcase previews
+│   ├── home_page.png               # Active sequences dashboard
+│   ├── schedule_page_01.png        # Time and cadence picker
+│   └── schedule_page_02.png        # Live preview and tone audition
 ├── docs/                           # Comprehensive technical documentation
 │   ├── system.md                   # System requirements, permissions, and lifecycle
 │   ├── architecture.md             # Architecture diagrams, data flow, and components
@@ -47,7 +91,8 @@ iAlarm/
 │   ├── design.md                   # Stitch visual design system, colors, and layout
 │   └── brand.md                    # Brand guidelines, naming conventions, and voice
 ├── src/                            # React frontend application
-│   ├── components/                 # UI views (HomeOverview, CreateAlarmModal, etc.)
+│   ├── assets/                     # SVG brand assets and bundled .ogg ringtones
+│   ├── components/                 # UI views (HomeOverview, CreateAlarmModal, SettingsView, etc.)
 │   ├── services/                   # AlarmApi Tauri invoke and native plugin bridge
 │   ├── types/                      # TypeScript domain models and interfaces
 │   ├── App.tsx                     # Main application entry point and state coordination
@@ -65,6 +110,7 @@ iAlarm/
 │   └── gen/android/                # Android Gradle project and native Kotlin source
 │       └── app/src/main/
 │           ├── AndroidManifest.xml # Permissions, activities, and broadcast receivers
+│           ├── res/raw/            # Bundled custom raw ringtones (.ogg)
 │           └── java/com/intervalalarm/alarm/
 │               ├── AlarmActionReceiver.kt  # Notification action handler
 │               ├── AlarmPlugin.kt          # Tauri 2 Android native plugin
@@ -83,8 +129,8 @@ iAlarm/
 
 ### Prerequisites
 
-- **Node.js**: v18.0.0 or higher
-- **pnpm**: v9.0.0 or higher
+- **Node.js**: `v18.0.0` or higher
+- **pnpm**: `v9.0.0` or higher (`npm install -g pnpm`)
 - **Rust**: Latest stable toolchain with `aarch64-linux-android` target
   ```bash
   rustup target add aarch64-linux-android
@@ -94,9 +140,11 @@ iAlarm/
 
 ### Installation
 
-Clone the repository and install frontend dependencies:
+Clone the repository and install frontend dependencies using `pnpm`:
 
 ```bash
+git clone https://github.com/carlodandan/iAlarm.git
+cd iAlarm
 pnpm install
 ```
 
@@ -165,3 +213,9 @@ Full documentation is available in the `docs/` directory:
 - [Product Documentation](docs/product.md): Value proposition, sequence lifecycles, and use cases.
 - [Design Documentation](docs/design.md): Circadian design tokens, color palette, typography, and UI specifications.
 - [Brand Documentation](docs/brand.md): Naming architecture, brand voice, and identity standards.
+
+---
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).

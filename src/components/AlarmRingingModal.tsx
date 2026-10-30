@@ -18,9 +18,9 @@ export const AlarmRingingModal: React.FC<AlarmRingingModalProps> = ({
 }) => {
   useEffect(() => {
     // Play looped tone until dismissed or snoozed
-    playTonePreview(alarm.sound || "Aura Dawn");
+    playTonePreview(alarm.sound || settings.default_sound || "best_android_rington");
     const interval = setInterval(() => {
-      playTonePreview(alarm.sound || "Aura Dawn");
+      playTonePreview(alarm.sound || settings.default_sound || "best_android_rington");
     }, 2500);
 
     return () => {
