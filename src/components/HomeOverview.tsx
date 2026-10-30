@@ -16,6 +16,7 @@ import {
   Tag,
   Settings as SettingsIcon,
 } from "lucide-react";
+import intervalAlarmLogo from "../assets/interval_alarm_logo.svg";
 
 
 interface HomeOverviewProps {
@@ -106,8 +107,12 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
       {/* Header Bar */}
       <header className="flex items-center justify-between h-14 mb-3">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-[#c8bfff]/10 flex items-center justify-center text-[#c8bfff] border border-[#c8bfff]/20">
-            <AlarmClock className="w-5 h-5" />
+          <div className="w-9 h-9 rounded-xl bg-[#c8bfff]/10 flex items-center justify-center border border-[#c8bfff]/20 overflow-hidden">
+            <img
+              src={intervalAlarmLogo}
+              alt="iAlarm Logo"
+              className="w-full h-full object-cover"
+            />
           </div>
           <div className="flex flex-col">
             <span className="text-[10px] uppercase font-semibold text-[#c8bfff] tracking-widest leading-none">
