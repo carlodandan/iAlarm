@@ -27,6 +27,11 @@ const IS_TAURI = typeof window !== "undefined" && "__TAURI_INTERNALS__" in windo
 let audioCtx: AudioContext | null = null;
 let activeOscillators: OscillatorNode[] = [];
 let activeAudioElement: HTMLAudioElement | null = null;
+let currentPreviewId = 0;
+
+export function isAudioOwner(previewId: number): boolean {
+  return previewId === currentPreviewId;
+}
 
 export const CustomRingtoneAudios: Record<string, string> = {
   best_android_rington: bestAndroidAudio,
@@ -68,8 +73,9 @@ export const LegacyPresets = [
 
 export const SoundPresets = [...CustomRingtones, ...LegacyPresets];
 
-export function playTonePreview(presetName: string) {
+export function playTonePreview(presetName: string): number {
   stopTonePreview();
+  const previewId = ++currentPreviewId;
 
   // 1. Check if it matches a custom ringtone audio file (plays cleanly in WebView)
   const customAudioUrl = CustomRingtoneAudios[presetName];
@@ -80,23 +86,30 @@ export function playTonePreview(presetName: string) {
       activeAudioElement = audio;
       audio.play().catch((err) => {
         console.warn("Audio play error:", err);
+        if (IS_TAURI && activeAudioElement === audio) {
+          invoke("test_tone", { tone: presetName, vibration: false }).catch(() => {});
+        }
       });
-      return;
+      return previewId;
     } catch (e) {
       console.warn("Failed to play custom ringtone preview:", e);
+      if (IS_TAURI) {
+        invoke("test_tone", { tone: presetName, vibration: false }).catch(() => {});
+        return previewId;
+      }
     }
   }
 
   // 2. If running on native Android, test tone via native RingtonePlayer
-  if (IS_TAURI) {
+  if (IS_TAURI && typeof navigator !== "undefined" && /android/i.test(navigator.userAgent)) {
     invoke("test_tone", { tone: presetName, vibration: false }).catch(() => {});
-    return;
+    return previewId;
   }
 
   // 3. Fall back to Web Audio oscillator synth for legacy presets in browser
   try {
     const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    if (!AudioContextClass) return;
+    if (!AudioContextClass) return previewId;
 
     audioCtx = new AudioContextClass();
     const now = audioCtx.currentTime;
@@ -153,9 +166,15 @@ export function playTonePreview(presetName: string) {
   } catch (e) {
     console.warn("Audio preview failed:", e);
   }
+  return previewId;
 }
 
-export function stopTonePreview() {
+export function stopTonePreview(previewId?: number) {
+  if (previewId !== undefined && previewId !== currentPreviewId) {
+    return;
+  }
+  currentPreviewId++;
+
   if (IS_TAURI) {
     invoke("stop_tone").catch(() => {});
   }

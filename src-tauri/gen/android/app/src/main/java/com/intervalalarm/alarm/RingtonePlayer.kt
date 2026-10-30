@@ -18,6 +18,7 @@ object RingtonePlayer {
     private const val TAG = "RingtonePlayer"
     private var mediaPlayer: MediaPlayer? = null
     private var previewPlayer: MediaPlayer? = null
+    private var previewVibrator: Vibrator? = null
     private var fallbackRingtone: Ringtone? = null
     private var vibrator: Vibrator? = null
     private var audioManager: AudioManager? = null
@@ -102,7 +103,7 @@ object RingtonePlayer {
     }
 
     @Synchronized
-    fun previewTone(context: Context, soundNameOrUri: String?) {
+    fun previewTone(context: Context, soundNameOrUri: String?, enableVibration: Boolean = false) {
         stopPreview()
         try {
             val rawResId = resolveRawResourceId(context, soundNameOrUri)
@@ -125,12 +126,38 @@ object RingtonePlayer {
                 )
                 setVolume(0.9f, 0.9f)
                 isLooping = false
+                setOnCompletionListener {
+                    stopPreview()
+                }
                 prepare()
                 start()
             }
             Log.d(TAG, "Started audio preview for: $soundNameOrUri")
         } catch (e: Exception) {
             Log.e(TAG, "Error playing audio preview: ${e.message}")
+        }
+
+        if (enableVibration) {
+            try {
+                val vm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    val vManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+                    vManager.defaultVibrator
+                } else {
+                    @Suppress("DEPRECATION")
+                    context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+                }
+                previewVibrator = vm
+                val pattern = longArrayOf(0, 1000, 600, 1000, 600)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    previewVibrator?.vibrate(VibrationEffect.createWaveform(pattern, 0))
+                } else {
+                    @Suppress("DEPRECATION")
+                    previewVibrator?.vibrate(pattern, 0)
+                }
+                Log.d(TAG, "Started preview vibration pattern")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error starting preview vibration: ${e.message}")
+            }
         }
     }
 
@@ -142,6 +169,12 @@ object RingtonePlayer {
             previewPlayer = null
         } catch (e: Exception) {
             Log.e(TAG, "Error stopping preview player: ${e.message}")
+        }
+        try {
+            previewVibrator?.cancel()
+            previewVibrator = null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error stopping preview vibrator: ${e.message}")
         }
     }
 

@@ -85,7 +85,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       playTonePreview(settings.default_sound || "Aura Dawn");
       setIsPlayingAudio(true);
       previewTimerRef.current = setTimeout(() => {
-        stopTonePreview();
         setIsPlayingAudio(false);
       }, 3500);
     }

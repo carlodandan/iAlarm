@@ -194,7 +194,7 @@ class AlarmPlugin(private val activity: Activity) : Plugin(activity) {
     fun testTone(invoke: Invoke) {
         try {
             val args = invoke.parseArgs(TestToneArgs::class.java)
-            RingtonePlayer.previewTone(activity, args.tone)
+            RingtonePlayer.previewTone(activity, args.tone, args.vibration)
             invoke.resolve()
         } catch (e: Exception) {
             invoke.reject(e.message)

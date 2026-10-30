@@ -8,7 +8,7 @@ import {
   RepetitionMode,
   SchedulePreviewItem,
 } from "../types/alarm";
-import { AlarmApi, CustomRingtones, LegacyPresets, playTonePreview, stopTonePreview } from "../services/alarmApi";
+import { AlarmApi, CustomRingtones, LegacyPresets, isAudioOwner, playTonePreview, stopTonePreview } from "../services/alarmApi";
 import {
   X,
   Check,
@@ -128,6 +128,7 @@ export const CreateAlarmModal: React.FC<CreateAlarmModalProps> = ({
 
   // Clean up audio preview on unmount
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previewIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     return () => {
@@ -144,13 +145,20 @@ export const CreateAlarmModal: React.FC<CreateAlarmModalProps> = ({
 
     if (isPlayingPreview) {
       stopTonePreview();
+      previewIdRef.current = null;
       setIsPlayingPreview(false);
     } else {
-      playTonePreview(sound);
+      const id = playTonePreview(sound);
+      previewIdRef.current = id;
       setIsPlayingPreview(true);
       previewTimerRef.current = setTimeout(() => {
-        stopTonePreview();
-        setIsPlayingPreview(false);
+        if (previewIdRef.current !== null && isAudioOwner(previewIdRef.current)) {
+          stopTonePreview(previewIdRef.current);
+          setIsPlayingPreview(false);
+        } else if (previewIdRef.current !== null && !isAudioOwner(previewIdRef.current)) {
+          setIsPlayingPreview(false);
+        }
+        previewIdRef.current = null;
       }, 3500);
     }
   };
