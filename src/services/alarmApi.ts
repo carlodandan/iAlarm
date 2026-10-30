@@ -8,13 +8,57 @@ import {
   SchedulePreviewItem,
 } from "../types/alarm";
 
+import bestAndroidAudio from "../assets/ringtones/best_android_rington.ogg";
+import dandadanAudio from "../assets/ringtones/dandadan_01.ogg";
+import detectiveConanAudio from "../assets/ringtones/detective_conan_01.ogg";
+import gintamaAudio from "../assets/ringtones/gintama_01.ogg";
+import jujutsuKaisenAudio from "../assets/ringtones/jujutsu_kaisen_01.ogg";
+import miRemixAudio from "../assets/ringtones/mi_remix_miui12.ogg";
+import nokiaAndroidAudio from "../assets/ringtones/nokia_android.ogg";
+import onePiece01Audio from "../assets/ringtones/one_piece_01.ogg";
+import onePiece02Audio from "../assets/ringtones/one_piece_02.ogg";
+import onePiece03Audio from "../assets/ringtones/one_piece_03.ogg";
+import oppoCalmAudio from "../assets/ringtones/oppo_calm.ogg";
+import samsungGalaxyAudio from "../assets/ringtones/samsung_galaxy_s11.ogg";
+
 const IS_TAURI = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
-// Web Audio API tone player for previewing sounds
+// Audio player for previewing sounds
 let audioCtx: AudioContext | null = null;
 let activeOscillators: OscillatorNode[] = [];
+let activeAudioElement: HTMLAudioElement | null = null;
 
-export const SoundPresets = [
+export const CustomRingtoneAudios: Record<string, string> = {
+  best_android_rington: bestAndroidAudio,
+  dandadan_01: dandadanAudio,
+  detective_conan_01: detectiveConanAudio,
+  gintama_01: gintamaAudio,
+  jujutsu_kaisen_01: jujutsuKaisenAudio,
+  mi_remix_miui12: miRemixAudio,
+  nokia_android: nokiaAndroidAudio,
+  one_piece_01: onePiece01Audio,
+  one_piece_02: onePiece02Audio,
+  one_piece_03: onePiece03Audio,
+  oppo_calm: oppoCalmAudio,
+  samsung_galaxy_s11: samsungGalaxyAudio,
+};
+
+export const CustomRingtones = [
+  { id: "best_android_rington", name: "Best Android", description: "Modern electro chime" },
+  { id: "dandadan_01", name: "Dandadan", description: "High-energy anime beat" },
+  { id: "detective_conan_01", name: "Detective Conan", description: "Classic suspense theme" },
+  { id: "gintama_01", name: "Gintama", description: "Energetic anime cadence" },
+  { id: "jujutsu_kaisen_01", name: "Jujutsu Kaisen", description: "Battle rhythm drive" },
+  { id: "mi_remix_miui12", name: "Mi Remix (MIUI)", description: "Dynamic smartphone groove" },
+  { id: "nokia_android", name: "Nokia Android", description: "Nostalgic modern tone" },
+  { id: "one_piece_01", name: "One Piece 1", description: "Grand adventure fanfare" },
+  { id: "one_piece_02", name: "One Piece 2", description: "Heroic journey motif" },
+  { id: "one_piece_03", name: "One Piece 3", description: "Lively pirate crew rhythm" },
+  { id: "oppo_calm", name: "Oppo Calm", description: "Gentle ambient wake" },
+  { id: "samsung_galaxy_s11", name: "Samsung Galaxy", description: "Refined classic chime" },
+];
+
+export const LegacyPresets = [
   { id: "Aura Dawn", name: "Aura Dawn", description: "Circadian ambient ascending chime" },
   { id: "Celestial Chime", name: "Celestial Chime", description: "Ascending gentle bell harmonic" },
   { id: "Zen Bell", name: "Zen Bell", description: "Singing bowl with soft resonance" },
@@ -22,9 +66,33 @@ export const SoundPresets = [
   { id: "Horizon Flare", name: "Horizon Flare", description: "Vibrant energetic morning pulse" },
 ];
 
+export const SoundPresets = [...CustomRingtones, ...LegacyPresets];
+
 export function playTonePreview(presetName: string) {
   stopTonePreview();
 
+  // On Android native, trigger the hardware RingtonePlayer testTone command
+  if (IS_TAURI) {
+    invoke("test_tone", { tone: presetName, vibration: false }).catch(() => {});
+  }
+
+  // 1. Check if it matches a custom ringtone audio file
+  const customAudioUrl = CustomRingtoneAudios[presetName];
+  if (customAudioUrl) {
+    try {
+      const audio = new Audio(customAudioUrl);
+      audio.volume = 0.9;
+      activeAudioElement = audio;
+      audio.play().catch((err) => {
+        console.warn("Audio play error:", err);
+      });
+      return;
+    } catch (e) {
+      console.warn("Failed to play custom ringtone preview:", e);
+    }
+  }
+
+  // 2. Fall back to Web Audio oscillator synth for legacy presets
   try {
     const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextClass) return;
@@ -87,6 +155,20 @@ export function playTonePreview(presetName: string) {
 }
 
 export function stopTonePreview() {
+  if (IS_TAURI) {
+    invoke("stop_tone").catch(() => {});
+  }
+
+  if (activeAudioElement) {
+    try {
+      activeAudioElement.pause();
+      activeAudioElement.currentTime = 0;
+    } catch {
+      // ignore
+    }
+    activeAudioElement = null;
+  }
+
   for (const osc of activeOscillators) {
     try {
       osc.stop();
@@ -470,6 +552,26 @@ export const AlarmApi = {
         await invoke("sync_alarms_to_native");
       } catch (e) {
         console.log("Native sync skipped:", e);
+      }
+    }
+  },
+
+  async testTone(tone: string, vibration: boolean = false): Promise<void> {
+    if (IS_TAURI) {
+      try {
+        await invoke("test_tone", { tone, vibration });
+      } catch (e) {
+        console.error("Failed test_tone:", e);
+      }
+    }
+  },
+
+  async stopTone(): Promise<void> {
+    if (IS_TAURI) {
+      try {
+        await invoke("stop_tone");
+      } catch (e) {
+        console.error("Failed stop_tone:", e);
       }
     }
   },

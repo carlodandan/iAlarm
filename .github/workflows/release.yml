@@ -62,15 +62,29 @@ jobs:
         id: pkg
         run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
+      - name: Determine Release Settings
+        id: release-config
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "tag=v${{ steps.pkg.outputs.version }}" >> $GITHUB_OUTPUT
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+            echo "apk_name=iAlarm-v${{ steps.pkg.outputs.version }}.apk" >> $GITHUB_OUTPUT
+          else
+            echo "tag=v${{ steps.pkg.outputs.version }}-test" >> $GITHUB_OUTPUT
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+            echo "apk_name=iAlarm-v${{ steps.pkg.outputs.version }}-test.apk" >> $GITHUB_OUTPUT
+          fi
+
       - name: Rename APK
         run: |
           mv src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk \
-             src-tauri/gen/android/app/build/outputs/apk/universal/release/iAlarm-v${{ steps.pkg.outputs.version }}.apk
+             src-tauri/gen/android/app/build/outputs/apk/universal/release/${{ steps.release-config.outputs.apk_name }}
 
       - name: Upload APK to GitHub Release
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: v${{ steps.pkg.outputs.version }}
+          tag_name: ${{ steps.release-config.outputs.tag }}
+          prerelease: ${{ steps.release-config.outputs.is_prerelease }}
           files: src-tauri/gen/android/app/build/outputs/apk/universal/release/iAlarm-*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}

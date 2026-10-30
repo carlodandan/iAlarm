@@ -123,34 +123,67 @@ object RingtonePlayer {
                 )
             }
 
-            // Resolve ringtone URI: check if specific URI was provided, otherwise use device default alarm ringtone
-            var alarmUri: Uri? = null
-            if (!soundNameOrUri.isNullOrEmpty() && (soundNameOrUri.startsWith("content://") || soundNameOrUri.startsWith("android.resource://"))) {
+            var played = false
+
+            // 1. Check if sound matches a bundled raw resource ringtone
+            val cleanSound = soundNameOrUri?.trim()?.lowercase()
+                ?.removePrefix("custom:")
+                ?.replace(" ", "_")
+                ?.replace("-", "_")
+
+            val rawResId = if (!cleanSound.isNullOrEmpty()) {
+                context.resources.getIdentifier(cleanSound, "raw", context.packageName)
+            } else 0
+
+            if (rawResId != 0) {
                 try {
-                    alarmUri = Uri.parse(soundNameOrUri)
+                    val afd = context.resources.openRawResourceFd(rawResId)
+                    mediaPlayer = MediaPlayer().apply {
+                        setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
+                        afd.close()
+                        setAudioAttributes(audioAttributes)
+                        setVolume(1.0f, 1.0f)
+                        isLooping = true
+                        prepare()
+                        start()
+                    }
+                    played = true
+                    Log.d(TAG, "Started MediaPlayer with custom raw ringtone: $cleanSound (ID: $rawResId)")
                 } catch (e: Exception) {
-                    alarmUri = null
+                    Log.e(TAG, "Failed playing raw ringtone $cleanSound: ${e.message}, falling back to system URI")
                 }
             }
 
-            if (alarmUri == null) {
-                alarmUri = RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_ALARM)
-                    ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-                    ?: RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_RINGTONE)
-                    ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-            }
-
-            mediaPlayer = MediaPlayer().apply {
-                if (alarmUri != null) {
-                    setDataSource(context, alarmUri)
+            // 2. Fall back to URI or Device Default Ringtone if raw resource was not played
+            if (!played) {
+                var alarmUri: Uri? = null
+                if (!soundNameOrUri.isNullOrEmpty() && (soundNameOrUri.startsWith("content://") || soundNameOrUri.startsWith("android.resource://"))) {
+                    try {
+                        alarmUri = Uri.parse(soundNameOrUri)
+                    } catch (e: Exception) {
+                        alarmUri = null
+                    }
                 }
-                setAudioAttributes(audioAttributes)
-                setVolume(1.0f, 1.0f)
-                isLooping = true
-                prepare()
-                start()
+
+                if (alarmUri == null) {
+                    alarmUri = RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_ALARM)
+                        ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                        ?: RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_RINGTONE)
+                        ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+                }
+
+                mediaPlayer = MediaPlayer().apply {
+                    if (alarmUri != null) {
+                        setDataSource(context, alarmUri)
+                    }
+                    setAudioAttributes(audioAttributes)
+                    setVolume(1.0f, 1.0f)
+                    isLooping = true
+                    prepare()
+                    start()
+                }
+                Log.d(TAG, "Started MediaPlayer with URI: $alarmUri")
             }
-            Log.d(TAG, "Started MediaPlayer with URI: $alarmUri")
         } catch (e: Exception) {
             Log.e(TAG, "MediaPlayer failed: ${e.message}, falling back to system Ringtone")
             try {

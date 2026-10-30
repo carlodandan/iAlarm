@@ -90,6 +90,8 @@ pub fn run() {
             commands::request_notification_permission,
             commands::get_alarm_logs,
             commands::clear_alarm_logs,
+            commands::test_tone,
+            commands::stop_tone,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

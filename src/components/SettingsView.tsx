@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { AppSettings, NativePermissionStatus } from "../types/alarm";
-import { AlarmApi, SoundPresets, playTonePreview, stopTonePreview } from "../services/alarmApi";
+import { AlarmApi, CustomRingtones, LegacyPresets, playTonePreview, stopTonePreview } from "../services/alarmApi";
 import {
   ShieldCheck,
   Zap,
@@ -365,11 +365,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   onChange={(e) => handleSoundChange(e.target.value)}
                   className="bg-transparent text-xs font-semibold text-[#c8bfff] outline-none cursor-pointer mt-0.5"
                 >
-                  {SoundPresets.map((sp) => (
-                    <option key={sp.id} value={sp.id} className="bg-[#1f1f23] text-[#e3e2e6]">
-                      {sp.name}
-                    </option>
-                  ))}
+                  <optgroup label="Custom Ringtones" className="bg-[#1b1b1f] text-[#c8bfff] font-bold">
+                    {CustomRingtones.map((sp) => (
+                      <option key={sp.id} value={sp.id} className="bg-[#1f1f23] text-[#e3e2e6] font-normal">
+                        {sp.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Ambient Presets" className="bg-[#1b1b1f] text-[#928f9d] font-bold">
+                    {LegacyPresets.map((sp) => (
+                      <option key={sp.id} value={sp.id} className="bg-[#1f1f23] text-[#e3e2e6] font-normal">
+                        {sp.name}
+                      </option>
+                    ))}
+                  </optgroup>
                 </select>
               </div>
               <button

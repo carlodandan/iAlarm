@@ -8,7 +8,7 @@ import {
   RepetitionMode,
   SchedulePreviewItem,
 } from "../types/alarm";
-import { AlarmApi, SoundPresets, playTonePreview, stopTonePreview } from "../services/alarmApi";
+import { AlarmApi, CustomRingtones, LegacyPresets, playTonePreview, stopTonePreview } from "../services/alarmApi";
 import {
   X,
   Check,
@@ -715,11 +715,20 @@ export const CreateAlarmModal: React.FC<CreateAlarmModalProps> = ({
                     <option value={`Device Default: ${deviceRingtone.title}`} className="bg-[#1f1f23] text-[#40e17e] font-semibold">
                       📱 Device Default: {deviceRingtone.title}
                     </option>
-                    {SoundPresets.map((sp) => (
-                      <option key={sp.id} value={sp.id} className="bg-[#1f1f23] text-[#e3e2e6]">
-                        {sp.name} — {sp.description}
-                      </option>
-                    ))}
+                    <optgroup label="Custom Ringtones" className="bg-[#1b1b1f] text-[#c8bfff] font-bold">
+                      {CustomRingtones.map((sp) => (
+                        <option key={sp.id} value={sp.id} className="bg-[#1f1f23] text-[#e3e2e6] font-normal">
+                          {sp.name} — {sp.description}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Ambient Presets" className="bg-[#1b1b1f] text-[#928f9d] font-bold">
+                      {LegacyPresets.map((sp) => (
+                        <option key={sp.id} value={sp.id} className="bg-[#1f1f23] text-[#e3e2e6] font-normal">
+                          {sp.name} — {sp.description}
+                        </option>
+                      ))}
+                    </optgroup>
                   </select>
                   <button
                     type="button"
