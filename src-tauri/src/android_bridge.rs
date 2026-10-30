@@ -160,4 +160,26 @@ impl AndroidBridge {
             Ok(())
         }
     }
+
+    pub fn get_native_alarms(&self) -> Result<Vec<crate::models::AlarmSequence>, String> {
+        #[cfg(target_os = "android")]
+        {
+            let res = self.handle
+                .run_mobile_plugin::<serde_json::Value>(
+                    "getNativeAlarms",
+                    serde_json::json!({}),
+                )
+                .map_err(|e| e.to_string())?;
+            if let Some(json_str) = res.get("alarmsJson").and_then(|v| v.as_str()) {
+                let alarms: Vec<crate::models::AlarmSequence> = serde_json::from_str(json_str)
+                    .map_err(|e| format!("Failed to parse native alarms: {}", e))?;
+                return Ok(alarms);
+            }
+            Ok(vec![])
+        }
+        #[cfg(not(target_os = "android"))]
+        {
+            Ok(vec![])
+        }
+    }
 }

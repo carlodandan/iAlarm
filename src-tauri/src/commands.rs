@@ -35,7 +35,24 @@ fn sync_to_native(app: &AppHandle, storage: &StorageManager) {
 }
 
 #[tauri::command]
-pub fn get_alarms(storage: State<'_, StorageManager>) -> Vec<AlarmSequence> {
+pub fn get_alarms(
+    app: AppHandle,
+    storage: State<'_, StorageManager>,
+) -> Vec<AlarmSequence> {
+    #[cfg(target_os = "android")]
+    {
+        if let Some(bridge) = app.try_state::<AndroidBridge>() {
+            if let Ok(native_alarms) = bridge.get_native_alarms() {
+                if !native_alarms.is_empty() {
+                    for a in &native_alarms {
+                        let _ = storage.save_alarm(a.clone());
+                    }
+                    return native_alarms;
+                }
+            }
+        }
+    }
+    let _ = app;
     storage.get_alarms()
 }
 

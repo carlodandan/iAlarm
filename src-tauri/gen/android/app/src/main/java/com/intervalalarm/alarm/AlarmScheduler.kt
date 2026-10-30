@@ -237,6 +237,7 @@ object AlarmScheduler {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val requestCode = alarmId.hashCode()
 
+        // 1. Cancel trigger broadcast PendingIntent
         val intent = Intent(context, AlarmReceiver::class.java).apply {
             action = AlarmReceiver.ACTION_TRIGGER_ALARM
         }
@@ -248,8 +249,35 @@ object AlarmScheduler {
         )
         alarmManager.cancel(pendingIntent)
         pendingIntent.cancel()
+
+        // 2. Cancel AlarmClockInfo show PendingIntent
+        val showIntent = Intent(context, MainActivity::class.java)
+        val showPendingIntent = PendingIntent.getActivity(
+            context,
+            requestCode + 1,
+            showIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        showPendingIntent.cancel()
+
+        // 3. Stop playback service if actively ringing
+        try {
+            AlarmPlaybackService.stop(context)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error stopping playback service on cancel: ${e.message}")
+        }
+
+        // 4. Cancel active notification
+        try {
+            val notificationId = AlarmReceiver.NOTIFICATION_ID_BASE + (alarmId.hashCode() % 1000)
+            val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+            nm.cancel(notificationId)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error canceling notification on cancel: ${e.message}")
+        }
+
         AlarmLogger.log(context, "ALARM_CANCELED", alarmId)
-        Log.d(TAG, "Canceled alarm $alarmId")
+        Log.d(TAG, "Canceled alarm $alarmId and cleaned up pending intents/notifications")
     }
 
     fun rescheduleAll(context: Context) {
@@ -257,8 +285,10 @@ object AlarmScheduler {
         AlarmLogger.log(context, "ALARMS_RESCHEDULED_ALL", null, "Count: ${all.size}")
         Log.d(TAG, "Rescheduling ${all.size} alarm sequences")
         for (alarm in all) {
-            if (alarm.enabled && alarm.state != "completed") {
+            if (alarm.enabled && alarm.state != "completed" && alarm.state != "disabled") {
                 scheduleSequence(context, alarm)
+            } else {
+                cancelAlarm(context, alarm.id)
             }
         }
     }

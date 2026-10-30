@@ -195,4 +195,34 @@ class AlarmSchedulerTest {
         }
         assertEquals(expectedWednesday.timeInMillis, nextWk)
     }
+
+    @Test
+    fun testDisabledAlarmReturnsNullTargetTime() {
+        val now = System.currentTimeMillis()
+        val seq = NativeAlarmSequence(
+            id = "test-disabled",
+            name = "Disabled Alarm",
+            enabled = false,
+            startTime = now + 10000L,
+            intervalValue = 1,
+            intervalUnit = "hours",
+            totalOccurrences = 3,
+            repetitionMode = "one_time",
+            selectedWeekdays = emptyList(),
+            sound = "Default",
+            vibration = true,
+            snoozeMinutes = 10,
+            snoozeMaxCount = 3,
+            currentOccurrenceIndex = 0,
+            state = "disabled",
+            nextTriggerTime = null,
+            snoozedUntil = null,
+            snoozeCount = 0
+        )
+
+        val res = AlarmScheduler.computeNextOccurrence(seq, now)
+        assertTrue(res.isCompleted)
+        assertNull(res.targetTimeMs)
+        assertEquals("completed", res.newState)
+    }
 }

@@ -158,9 +158,33 @@ class AlarmPlugin(private val activity: Activity) : Plugin(activity) {
     fun syncAlarms(invoke: Invoke) {
         try {
             val args = invoke.parseArgs(SyncAlarmsArgs::class.java)
+            val oldAlarms = NativeStorage.getAllAlarms(activity)
             NativeStorage.saveAlarms(activity, args.alarmsJson)
+            val newAlarms = NativeStorage.getAllAlarms(activity)
+            val newIds = newAlarms.map { it.id }.toSet()
+
+            // Cancel any alarms that were deleted
+            for (old in oldAlarms) {
+                if (!newIds.contains(old.id)) {
+                    AlarmScheduler.cancelAlarm(activity, old.id)
+                }
+            }
+
             AlarmScheduler.rescheduleAll(activity)
             invoke.resolve()
+        } catch (e: Exception) {
+            invoke.reject(e.message)
+        }
+    }
+
+    @Command
+    fun getNativeAlarms(invoke: Invoke) {
+        try {
+            val prefs = activity.getSharedPreferences("interval_alarm_native_store", Context.MODE_PRIVATE)
+            val raw = prefs.getString("persisted_alarms_json", "[]") ?: "[]"
+            val res = JSObject()
+            res.put("alarmsJson", raw)
+            invoke.resolve(res)
         } catch (e: Exception) {
             invoke.reject(e.message)
         }

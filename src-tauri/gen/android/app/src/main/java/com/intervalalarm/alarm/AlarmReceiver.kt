@@ -31,12 +31,22 @@ class AlarmReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         val alarmId = intent.getStringExtra(EXTRA_ALARM_ID) ?: return
-        val alarmName = intent.getStringExtra(EXTRA_ALARM_NAME) ?: "Interval Alarm"
-        val occurrenceIndex = intent.getIntExtra(EXTRA_OCCURRENCE_INDEX, 0)
-        val totalOccurrences = intent.getIntExtra(EXTRA_TOTAL_OCCURRENCES, 1)
-        val sound = intent.getStringExtra(EXTRA_SOUND)
-        val vibration = intent.getBooleanExtra(EXTRA_VIBRATION, true)
-        val snoozeMinutes = intent.getIntExtra(EXTRA_SNOOZE_MINUTES, 10)
+
+        // Verify alarm exists and is currently enabled before ringing
+        val seq = NativeStorage.getAlarmById(context, alarmId)
+        if (seq == null || !seq.enabled || seq.state == "disabled" || seq.state == "completed") {
+            Log.w(TAG, "Alarm $alarmId triggered but is disabled, completed, or deleted. Canceling and ignoring.")
+            AlarmScheduler.cancelAlarm(context, alarmId)
+            AlarmLogger.log(context, "ALARM_TRIGGER_IGNORED_DISABLED", alarmId, "State: ${seq?.state}, Enabled: ${seq?.enabled}")
+            return
+        }
+
+        val alarmName = intent.getStringExtra(EXTRA_ALARM_NAME) ?: seq.name
+        val occurrenceIndex = intent.getIntExtra(EXTRA_OCCURRENCE_INDEX, seq.currentOccurrenceIndex)
+        val totalOccurrences = intent.getIntExtra(EXTRA_TOTAL_OCCURRENCES, seq.totalOccurrences)
+        val sound = intent.getStringExtra(EXTRA_SOUND) ?: seq.sound
+        val vibration = intent.getBooleanExtra(EXTRA_VIBRATION, seq.vibration)
+        val snoozeMinutes = intent.getIntExtra(EXTRA_SNOOZE_MINUTES, seq.snoozeMinutes)
 
         Log.d(TAG, "Alarm triggered: $alarmName (Occurrence ${occurrenceIndex + 1} of $totalOccurrences)")
         AlarmLogger.log(context, "ALARM_DELIVERED", alarmId, "Name: $alarmName, Occ: ${occurrenceIndex + 1}/$totalOccurrences")
@@ -57,10 +67,7 @@ class AlarmReceiver : BroadcastReceiver() {
 
         // Mark alarm state as ringing in persistent storage
         try {
-            val seq = NativeStorage.getAlarmById(context, alarmId)
-            if (seq != null) {
-                NativeStorage.updateAlarm(context, seq.copy(state = "ringing"))
-            }
+            NativeStorage.updateAlarm(context, seq.copy(state = "ringing"))
         } catch (e: Exception) {
             Log.e(TAG, "Error updating alarm state to ringing: ${e.message}")
         }

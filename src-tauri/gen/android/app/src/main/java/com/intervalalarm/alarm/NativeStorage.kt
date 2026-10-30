@@ -8,6 +8,7 @@ import org.json.JSONObject
 data class NativeAlarmSequence(
     val id: String,
     val name: String,
+    val category: String = "general",
     val enabled: Boolean,
     val startTime: Long,
     val intervalValue: Long,
@@ -19,6 +20,9 @@ data class NativeAlarmSequence(
     val vibration: Boolean,
     val snoozeMinutes: Int,
     val snoozeMaxCount: Int,
+    val gradualVolume: Boolean = true,
+    val createdAt: Long = 0,
+    val updatedAt: Long = 0,
     val currentOccurrenceIndex: Int,
     val state: String,
     val nextTriggerTime: Long?,
@@ -65,6 +69,7 @@ object NativeStorage {
                     NativeAlarmSequence(
                         id = obj.getString("id"),
                         name = obj.optString("name", "Interval Alarm"),
+                        category = obj.optString("category", "general"),
                         enabled = obj.optBoolean("enabled", true),
                         startTime = obj.optLong("start_time", System.currentTimeMillis()),
                         intervalValue = obj.optLong("interval_value", 6),
@@ -76,6 +81,9 @@ object NativeStorage {
                         vibration = obj.optBoolean("vibration", true),
                         snoozeMinutes = obj.optInt("snooze_duration_minutes", 10),
                         snoozeMaxCount = obj.optInt("snooze_max_count", 3),
+                        gradualVolume = obj.optBoolean("gradual_volume", true),
+                        createdAt = obj.optLong("created_at", 0),
+                        updatedAt = obj.optLong("updated_at", 0),
                         currentOccurrenceIndex = obj.optInt("current_occurrence_index", 0),
                         state = obj.optString("state", "scheduled"),
                         nextTriggerTime = if (obj.has("next_trigger_time") && !obj.isNull("next_trigger_time")) obj.getLong("next_trigger_time") else null,
@@ -104,6 +112,7 @@ object NativeStorage {
             val obj = JSONObject()
             obj.put("id", a.id)
             obj.put("name", a.name)
+            obj.put("category", a.category)
             obj.put("enabled", a.enabled)
             obj.put("start_time", a.startTime)
             obj.put("interval_value", a.intervalValue)
@@ -117,6 +126,9 @@ object NativeStorage {
             obj.put("vibration", a.vibration)
             obj.put("snooze_duration_minutes", a.snoozeMinutes)
             obj.put("snooze_max_count", a.snoozeMaxCount)
+            obj.put("gradual_volume", a.gradualVolume)
+            obj.put("created_at", a.createdAt)
+            obj.put("updated_at", a.updatedAt)
             obj.put("current_occurrence_index", a.currentOccurrenceIndex)
             obj.put("state", a.state)
             if (a.nextTriggerTime != null) obj.put("next_trigger_time", a.nextTriggerTime)
@@ -128,8 +140,41 @@ object NativeStorage {
         saveAlarms(context, array.toString())
     }
 
+    fun deleteAlarm(context: Context, id: String) {
+        val all = getAllAlarms(context).filter { it.id != id }
+        val array = JSONArray()
+        for (a in all) {
+            val obj = JSONObject()
+            obj.put("id", a.id)
+            obj.put("name", a.name)
+            obj.put("category", a.category)
+            obj.put("enabled", a.enabled)
+            obj.put("start_time", a.startTime)
+            obj.put("interval_value", a.intervalValue)
+            obj.put("interval_unit", a.intervalUnit)
+            obj.put("total_occurrences", a.totalOccurrences)
+            obj.put("repetition_mode", a.repetitionMode)
+            val weekdaysArr = JSONArray()
+            a.selectedWeekdays.forEach { weekdaysArr.put(it) }
+            obj.put("selected_weekdays", weekdaysArr)
+            obj.put("sound", a.sound)
+            obj.put("vibration", a.vibration)
+            obj.put("snooze_duration_minutes", a.snoozeMinutes)
+            obj.put("snooze_max_count", a.snoozeMaxCount)
+            obj.put("gradual_volume", a.gradualVolume)
+            obj.put("created_at", a.createdAt)
+            obj.put("updated_at", a.updatedAt)
+            obj.put("current_occurrence_index", a.currentOccurrenceIndex)
+            obj.put("state", a.state)
+            if (a.nextTriggerTime != null) obj.put("next_trigger_time", a.nextTriggerTime)
+            if (a.snoozedUntil != null) obj.put("snoozed_until", a.snoozedUntil)
+            obj.put("snooze_count", a.snoozeCount)
+            array.put(obj)
+        }
+        saveAlarms(context, array.toString())
+    }
+
     fun getAlarmById(context: Context, id: String): NativeAlarmSequence? {
         return getAllAlarms(context).find { it.id == id }
     }
 }
-

@@ -60,20 +60,23 @@ export function App() {
     loadData();
   }, [loadData]);
 
+  // Web preview fallback only (in a desktop browser without native Android AlarmManager)
   useEffect(() => {
-    if (alarms.length > 0) {
-      AlarmApi.syncWithAndroid(alarms);
-    }
-  }, [alarms]);
+    // In Tauri / Android, native AlarmManager and AlarmPlaybackService handle all alarms natively.
+    if (typeof window !== "undefined" && "__TAURI_INTERNALS__" in window) return;
 
-
-  // Periodic check to trigger in-app ringing modal when an alarm is due
-  useEffect(() => {
     const interval = setInterval(() => {
       if (ringingAlarm) return;
       const now = Date.now();
+      // In browser preview, only trigger if due within the last 5 seconds (not an old past alarm)
       const due = alarms.find(
-        (a) => a.enabled && a.next_trigger_time && a.next_trigger_time <= now && a.state !== "completed"
+        (a) =>
+          a.enabled &&
+          a.next_trigger_time &&
+          a.next_trigger_time <= now &&
+          now - a.next_trigger_time < 5000 &&
+          a.state !== "completed" &&
+          a.state !== "disabled"
       );
       if (due) {
         setRingingAlarm(due);

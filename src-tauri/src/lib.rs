@@ -37,15 +37,33 @@ pub fn run() {
             let data_dir = app.path().app_data_dir().unwrap_or_else(|_| PathBuf::from("./.ialarm_data"));
             let storage = StorageManager::new(data_dir);
             
-            // Synchronize existing alarms to native on app startup
-            let alarms = storage.get_alarms();
-            app.manage(storage);
-
+            // Synchronize existing alarms on app startup:
+            // On Android, NativeStorage is the source of truth for events that occurred while the app was closed.
+            #[cfg(target_os = "android")]
             if let Some(bridge) = app.try_state::<AndroidBridge>() {
-                if let Ok(json) = serde_json::to_string(&alarms) {
-                    let _ = bridge.sync_alarms(&json);
+                if let Ok(native_alarms) = bridge.get_native_alarms() {
+                    if !native_alarms.is_empty() {
+                        for a in native_alarms {
+                            let _ = storage.save_alarm(a);
+                        }
+                    } else {
+                        let alarms = storage.get_alarms();
+                        if let Ok(json) = serde_json::to_string(&alarms) {
+                            let _ = bridge.sync_alarms(&json);
+                        }
+                    }
                 }
             }
+            #[cfg(not(target_os = "android"))]
+            {
+                let alarms = storage.get_alarms();
+                if let Ok(json) = serde_json::to_string(&alarms) {
+                    if let Some(bridge) = app.try_state::<AndroidBridge>() {
+                        let _ = bridge.sync_alarms(&json);
+                    }
+                }
+            }
+            app.manage(storage);
 
             Ok(())
         })

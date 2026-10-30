@@ -236,6 +236,7 @@ class AlarmPlaybackService : Service() {
             .setFullScreenIntent(fullScreenPendingIntent, true)
             .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Dismiss", dismissPendingIntent)
             .addAction(android.R.drawable.ic_popup_sync, "Snooze (${snoozeMinutes}m)", snoozePendingIntent)
+            .setDeleteIntent(dismissPendingIntent)
             .build()
     }
 
