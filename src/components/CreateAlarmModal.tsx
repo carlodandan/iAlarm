@@ -324,23 +324,28 @@ export const CreateAlarmModal: React.FC<CreateAlarmModalProps> = ({
 
           {/* Big Time Card Display */}
           <div className="flex items-center justify-between bg-[#1f1f23] p-4 rounded-2xl border border-white/5">
-            <div className="flex items-baseline gap-1">
+            <div className="flex items-center">
               <input
                 type="number"
+                aria-label="Hour"
                 min={settings.time_format === "24h" ? 0 : 1}
                 max={settings.time_format === "24h" ? 23 : 12}
-                value={startHour}
-                onChange={(e) => setStartHour(parseInt(e.target.value) || 0)}
-                className="w-16 bg-transparent text-5xl font-light text-[#c8bfff] tracking-tight tabular-nums outline-none"
+                value={settings.time_format === "24h" ? startHour.toString().padStart(2, "0") : startHour}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  setStartHour(isNaN(val) ? 0 : val);
+                }}
+                className="w-14 text-right bg-transparent text-5xl font-light text-[#c8bfff] tracking-tight tabular-nums outline-none p-0 focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />
-              <span className="text-5xl font-light text-[#c8bfff]/50">:</span>
+              <span className="text-5xl font-light text-[#c8bfff]/50 select-none px-1 leading-none -translate-y-0.5">:</span>
               <input
                 type="number"
+                aria-label="Minute"
                 min={0}
                 max={59}
                 value={startMinute.toString().padStart(2, "0")}
                 onChange={(e) => setStartMinute(Math.min(59, Math.max(0, parseInt(e.target.value) || 0)))}
-                className="w-16 bg-transparent text-5xl font-light text-[#c8bfff] tracking-tight tabular-nums outline-none ml-1"
+                className="w-14 text-left bg-transparent text-5xl font-light text-[#c8bfff] tracking-tight tabular-nums outline-none p-0 focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />
             </div>
 
