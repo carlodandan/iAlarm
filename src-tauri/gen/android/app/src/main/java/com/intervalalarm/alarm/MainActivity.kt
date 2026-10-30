@@ -56,27 +56,25 @@ class MainActivity : TauriActivity() {
     private fun createAlarmNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            val channel = NotificationChannel(
-                AlarmReceiver.CHANNEL_ID,
-                "Interval Alarm Alerts",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "Urgent alerts and lock-screen alarms for scheduled intervals"
-                setBypassDnd(true)
-                enableVibration(true)
-                val alarmUri = RingtoneManager.getActualDefaultRingtoneUri(this@MainActivity, RingtoneManager.TYPE_ALARM)
-                    ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-                setSound(
-                    alarmUri,
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_ALARM)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                        .setFlags(AudioAttributes.FLAG_AUDIBILITY_ENFORCED)
-                        .build()
-                )
-                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+            try {
+                notificationManager.deleteNotificationChannel("interval_alarm_high_channel")
+            } catch (ignored: Exception) {}
+
+            val existing = notificationManager.getNotificationChannel(AlarmReceiver.CHANNEL_ID)
+            if (existing == null) {
+                val channel = NotificationChannel(
+                    AlarmReceiver.CHANNEL_ID,
+                    "Interval Alarm Alerts",
+                    NotificationManager.IMPORTANCE_HIGH
+                ).apply {
+                    description = "Urgent alerts and lock-screen alarms for scheduled intervals"
+                    setBypassDnd(true)
+                    enableVibration(false)
+                    setSound(null, null)
+                    lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+                }
+                notificationManager.createNotificationChannel(channel)
             }
-            notificationManager.createNotificationChannel(channel)
         }
     }
 }

@@ -71,12 +71,7 @@ export const SoundPresets = [...CustomRingtones, ...LegacyPresets];
 export function playTonePreview(presetName: string) {
   stopTonePreview();
 
-  // On Android native, trigger the hardware RingtonePlayer testTone command
-  if (IS_TAURI) {
-    invoke("test_tone", { tone: presetName, vibration: false }).catch(() => {});
-  }
-
-  // 1. Check if it matches a custom ringtone audio file
+  // 1. Check if it matches a custom ringtone audio file (plays cleanly in WebView)
   const customAudioUrl = CustomRingtoneAudios[presetName];
   if (customAudioUrl) {
     try {
@@ -92,7 +87,13 @@ export function playTonePreview(presetName: string) {
     }
   }
 
-  // 2. Fall back to Web Audio oscillator synth for legacy presets
+  // 2. If running on native Android, test tone via native RingtonePlayer
+  if (IS_TAURI) {
+    invoke("test_tone", { tone: presetName, vibration: false }).catch(() => {});
+    return;
+  }
+
+  // 3. Fall back to Web Audio oscillator synth for legacy presets in browser
   try {
     const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextClass) return;

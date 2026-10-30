@@ -41,7 +41,7 @@
             android:turnScreenOn="true"
             android:inheritShowWhenLocked="true"
             android:excludeFromRecents="true"
-            android:launchMode="singleInstance"
+            android:launchMode="singleTop"
             android:theme="@style/Theme.ialarm" />
 
         <!-- Foreground Service for Sustained Ringing & Audio Focus -->

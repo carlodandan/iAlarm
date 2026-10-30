@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { AppSettings, NativePermissionStatus } from "../types/alarm";
 import { AlarmApi, CustomRingtones, LegacyPresets, playTonePreview, stopTonePreview } from "../services/alarmApi";
 import {
@@ -63,14 +63,31 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     await onUpdateSettings({ ...settings, default_sound: snd });
   };
 
+  const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+      stopTonePreview();
+    };
+  }, []);
+
   const handleTestAudio = () => {
+    if (previewTimerRef.current) {
+      clearTimeout(previewTimerRef.current);
+      previewTimerRef.current = null;
+    }
+
     if (isPlayingAudio) {
       stopTonePreview();
       setIsPlayingAudio(false);
     } else {
       playTonePreview(settings.default_sound || "Aura Dawn");
       setIsPlayingAudio(true);
-      setTimeout(() => setIsPlayingAudio(false), 2500);
+      previewTimerRef.current = setTimeout(() => {
+        stopTonePreview();
+        setIsPlayingAudio(false);
+      }, 3500);
     }
   };
 

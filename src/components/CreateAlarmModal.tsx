@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   AlarmSequence,
   AppSettings,
@@ -127,20 +127,31 @@ export const CreateAlarmModal: React.FC<CreateAlarmModalProps> = ({
   }, [startHour, startMinute, isPM, intervalValue, intervalUnit, occurrences, settings.time_format]);
 
   // Clean up audio preview on unmount
+  const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     return () => {
+      if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
       stopTonePreview();
     };
   }, []);
 
   const handleToggleSoundPreview = () => {
+    if (previewTimerRef.current) {
+      clearTimeout(previewTimerRef.current);
+      previewTimerRef.current = null;
+    }
+
     if (isPlayingPreview) {
       stopTonePreview();
       setIsPlayingPreview(false);
     } else {
       playTonePreview(sound);
       setIsPlayingPreview(true);
-      setTimeout(() => setIsPlayingPreview(false), 2000);
+      previewTimerRef.current = setTimeout(() => {
+        stopTonePreview();
+        setIsPlayingPreview(false);
+      }, 3500);
     }
   };
 
