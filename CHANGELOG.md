@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2026-11-06
+
+### Removed
+- **Export JSON & Restore Options**: Removed the Data Management section in `SettingsView` containing "Export Sequences (JSON)" and "Restore / Import Profiles" to streamline the settings interface and reduce unnecessary complexity.
+- **Unused Import/Export Handlers**: Cleaned up unused export and import callbacks (`handleExportData`, `handleImportData`) and their corresponding props (`onExport`, `onImport`) across the frontend application.
+
+---
+
 ## [1.0.1] - 2026-10-31
 
 ### Added

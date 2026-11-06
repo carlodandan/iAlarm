@@ -188,40 +188,6 @@ export function App() {
     setDetailAlarm(created);
   };
 
-  const handleExportData = async () => {
-    try {
-      const json = await AlarmApi.exportData();
-      const blob = new Blob([json], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `interval_alarms_${new Date().toISOString().slice(0, 10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      alert("Failed to export data: " + e);
-    }
-  };
-
-  const handleImportData = async () => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = ".json";
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      const text = await file.text();
-      try {
-        const count = await AlarmApi.importData(text);
-        alert(`Successfully imported ${count} sequences!`);
-        await loadData();
-      } catch (err) {
-        alert("Failed to import JSON: " + err);
-      }
-    };
-    input.click();
-  };
-
   return (
     <div className="relative min-h-screen bg-[#121316] text-[#e3e2e6] selection:bg-[#c8bfff] selection:text-[#121316]">
       {/* Main Views */}
@@ -246,8 +212,6 @@ export function App() {
             setSettings(updated);
           }}
           onClose={() => setView("home")}
-          onExport={handleExportData}
-          onImport={handleImportData}
         />
       )}
 
