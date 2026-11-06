@@ -413,8 +413,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
         {/* About Card */}
         <div className="p-4 rounded-2xl bg-[#1b1b1f]/50 border border-white/5 text-center text-xs text-[#928f9d] space-y-1.5">
-          <p className="font-bold text-sm text-[#e3e2e6]">iAlarm <span className="text-xs text-[#c8bfff] font-normal">(Interval Alarm)</span> · v0.1.0</p>
-          <p className="font-mono text-[11px] text-[#928f9d]">App Identifier: <span className="text-[#c8bfff]">com.intervalalarm.alarm</span></p>
+          <p className="font-bold text-sm text-[#e3e2e6]">iAlarm <span className="text-xs text-[#c8bfff] font-normal">(Interval Alarm)</span> · v{__APP_VERSION__}</p>
           <p className="text-[11px]">Android-first offline utility with native AlarmManager &amp; WakeLock architecture.</p>
         </div>
       </div>
