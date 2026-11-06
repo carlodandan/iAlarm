@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.3] - 2026-11-06
+
+### Fixed
+- **Settings Version Readout**: Replaced stale hardcoded version display (`v0.1.0`) in `SettingsView` with dynamic build versioning (`v{__APP_VERSION__}`) linked directly to `package.json`.
+
+### Added
+- **Build-Time Version Injection**: Configured Vite compiler define step to inject `__APP_VERSION__` and `import.meta.env.VITE_APP_VERSION` directly from `package.json`.
+- **TypeScript Environment Declarations**: Added global type declarations in `vite-env.d.ts` and enabled JSON module resolution in `tsconfig.node.json` for type-safe build version access.
+
+---
+
 ## [1.0.2] - 2026-11-06
 
 ### Removed
