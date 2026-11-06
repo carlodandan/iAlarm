@@ -92,6 +92,7 @@ pub fn run() {
             commands::clear_alarm_logs,
             commands::test_tone,
             commands::stop_tone,
+            commands::close_splashscreen,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

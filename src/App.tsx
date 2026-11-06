@@ -11,10 +11,13 @@ import { CreateAlarmModal } from "./components/CreateAlarmModal";
 import { SequenceDetailsModal } from "./components/SequenceDetailsModal";
 import { SettingsView } from "./components/SettingsView";
 import { AlarmRingingModal } from "./components/AlarmRingingModal";
+import { SplashScreen } from "./components/SplashScreen";
 import "./App.css";
 
 export function App() {
   const [view, setView] = useState<"home" | "settings">("home");
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [showSplash, setShowSplash] = useState(true);
   const [alarms, setAlarms] = useState<AlarmSequence[]>([]);
   const [settings, setSettings] = useState<AppSettings>({
     display_theme: "dark",
@@ -53,6 +56,8 @@ export function App() {
       setPermissions(perms);
     } catch (e) {
       console.error("Failed to load initial data:", e);
+    } finally {
+      setIsInitialLoading(false);
     }
   }, []);
 
@@ -190,6 +195,13 @@ export function App() {
 
   return (
     <div className="relative min-h-screen bg-[#121316] text-[#e3e2e6] selection:bg-[#c8bfff] selection:text-[#121316]">
+      {showSplash && (
+        <SplashScreen
+          isReady={!isInitialLoading}
+          onFinished={() => setShowSplash(false)}
+        />
+      )}
+
       {/* Main Views */}
       {view === "home" ? (
         <HomeOverview

@@ -596,6 +596,16 @@ export const AlarmApi = {
       }
     }
   },
+
+  async closeSplashscreen(): Promise<void> {
+    if (IS_TAURI) {
+      try {
+        await invoke("close_splashscreen");
+      } catch (e) {
+        // Safe fallback if splashscreen window does not exist
+      }
+    }
+  },
 };
 
 
