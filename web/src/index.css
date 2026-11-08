@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    color-scheme: dark;
+    --color-canvas: #121316;
+    --color-surface-raised: #1b1b1f;
+    --color-surface-accent: #292a2d;
+    --color-primary: #c8bfff;
+    --color-primary-muted: rgba(200, 191, 255, 0.15);
+    --color-cadence: #40e17e;
+    --color-dismiss: #ff5c5c;
+    --color-text-primary: #e3e2e6;
+    --color-text-secondary: #c9c4d3;
+    --color-text-muted: #928f9d;
+
+    scrollbar-color: var(--color-surface-accent) var(--color-canvas);
+    scrollbar-width: thin;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    background-color: var(--color-canvas);
+    color: var(--color-text-primary);
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-text-primary);
+    overflow-x: hidden;
+  }
+
+  /* Tabular Numerals for horological and timer precision */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+}
+
+/* Fallback for WebKit scrollbars per modern-web-guidance */
+@supports not (scrollbar-color: auto) {
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #121316;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #292a2d;
+    border-radius: 4px;
+  }
+}
+
+/* Animations */
+@keyframes pulse-subtle {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(0.98);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 4s ease-in-out infinite;
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 30s linear infinite;
+}

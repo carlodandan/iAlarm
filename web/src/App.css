@@ -1,0 +1,13 @@
+/* Custom Utility Styles */
+.glow-lavender {
+  box-shadow: 0 0 50px -10px rgba(200, 191, 255, 0.25);
+}
+
+.glow-emerald {
+  box-shadow: 0 0 30px -5px rgba(64, 225, 126, 0.25);
+}
+
+.bg-obsidian-grid {
+  background-image: radial-gradient(rgba(200, 191, 255, 0.08) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
