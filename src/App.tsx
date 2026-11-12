@@ -88,10 +88,41 @@ export function App() {
 
   // Theme application to body/html
   useEffect(() => {
-    if (settings.display_theme === "light") {
-      document.documentElement.classList.remove("dark");
-    } else {
-      document.documentElement.classList.add("dark");
+    const applyTheme = () => {
+      let isDark = true;
+      if (settings.display_theme === "light") {
+        isDark = false;
+      } else if (settings.display_theme === "dark") {
+        isDark = true;
+      } else if (settings.display_theme === "system") {
+        isDark =
+          typeof window !== "undefined" && window.matchMedia
+            ? window.matchMedia("(prefers-color-scheme: dark)").matches
+            : true;
+      }
+
+      if (isDark) {
+        document.documentElement.classList.add("dark");
+        document.documentElement.classList.remove("light");
+        document.documentElement.style.colorScheme = "dark";
+      } else {
+        document.documentElement.classList.remove("dark");
+        document.documentElement.classList.add("light");
+        document.documentElement.style.colorScheme = "light";
+      }
+    };
+
+    applyTheme();
+
+    if (
+      settings.display_theme === "system" &&
+      typeof window !== "undefined" &&
+      window.matchMedia
+    ) {
+      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+      const handler = () => applyTheme();
+      mediaQuery.addEventListener("change", handler);
+      return () => mediaQuery.removeEventListener("change", handler);
     }
   }, [settings.display_theme]);
 
