@@ -87,14 +87,46 @@ export const CreateAlarmModal: React.FC<CreateAlarmModalProps> = ({
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Compute calculated anchor start timestamp
-  const calculateStartTimeMs = () => {
-    const now = new Date();
+  // Preserve initial anchor time if editing an existing alarm
+  const initialAnchorInfo = initialAlarm
+    ? {
+        hour24: new Date(initialAlarm.start_time).getHours(),
+        minute: new Date(initialAlarm.start_time).getMinutes(),
+        startTime: initialAlarm.start_time,
+        state: initialAlarm.state,
+      }
+    : null;
+
+  const getSelectedHour24 = () => {
     let hours24 = startHour;
     if (settings.time_format !== "24h") {
       if (isPM && startHour < 12) hours24 += 12;
       if (!isPM && startHour === 12) hours24 = 0;
     }
+    return hours24;
+  };
+
+  const isTimeUnchanged = () => {
+    if (!initialAnchorInfo) return false;
+    return (
+      getSelectedHour24() === initialAnchorInfo.hour24 &&
+      startMinute === initialAnchorInfo.minute
+    );
+  };
+
+  // Compute calculated anchor start timestamp
+  const calculateStartTimeMs = () => {
+    const now = new Date();
+    const hours24 = getSelectedHour24();
+
+    // If editing an existing alarm and the user did NOT change the time of day:
+    if (initialAnchorInfo && isTimeUnchanged()) {
+      // If the alarm was not completed, preserve original anchor timestamp
+      if (initialAnchorInfo.state !== "completed") {
+        return initialAnchorInfo.startTime;
+      }
+    }
+
     const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours24, startMinute, 0, 0);
     // If targeted time is earlier than now, set to tomorrow
     if (target.getTime() <= now.getTime()) {
@@ -818,7 +850,9 @@ export const CreateAlarmModal: React.FC<CreateAlarmModalProps> = ({
             className="w-full h-14 rounded-full bg-[#c8bfff] text-[#121316] font-semibold text-base shadow-xl shadow-[#c8bfff]/25 active:scale-[0.98] transition-all flex items-center justify-center gap-2 hover:bg-[#a99bff]"
           >
             <Clock className="w-5 h-5" />
-            <span>Schedule {occurrences} Alarms</span>
+            <span>
+              {initialAlarm ? "Save Changes" : `Schedule ${occurrences} Alarms`}
+            </span>
           </button>
         </div>
       </div>

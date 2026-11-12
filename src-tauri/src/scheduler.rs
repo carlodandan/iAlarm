@@ -404,7 +404,6 @@ mod tests {
         // Total 4: 1m, 4.6m, 8.2m, 11.8m
         let seq = make_test_sequence(start_ms, 1, 4, RepetitionMode::OneTime);
 
-
         // Device boots at start_ms + 2.5 hours -> occurrences 0 and 1 are in past
         let current_time = start_ms + (2 * 3600 * 1000) + 1000;
         let (updated, occ) = Scheduler::compute_next_occurrence(&seq, current_time);
@@ -412,6 +411,55 @@ mod tests {
         assert_eq!(updated.current_occurrence_index, 3); // occurrence 2 is at +2h which is also past current_time (+2h1s), so occurrence 3
         assert!(occ.is_some());
         assert_eq!(occ.unwrap().occurrence_index, 3);
+    }
+
+    #[test]
+    fn test_editing_in_progress_sequence_does_not_add_24_hours() {
+        // Routine: starts at 8:00 AM, every 4 hours, 4 occurrences
+        // 8:00 AM (0), 12:00 PM (1), 4:00 PM (2), 8:00 PM (3)
+        let interval_ms = 4 * 3600 * 1000;
+        let start_ms = 10_000_000; // 8:00 AM
+        let mut seq = make_test_sequence(start_ms, 4, 4, RepetitionMode::Daily);
+
+        // Suppose occurrence 0 passed and dismissed at 8:05 AM
+        seq.current_occurrence_index = 1;
+        seq.next_trigger_time = Some(start_ms + interval_ms); // 12:00 PM
+
+        // User edits sequence at 10:00 AM (start_ms + 2 hours)
+        let now_ms = start_ms + (2 * 3600 * 1000);
+
+        // When saved, start_time is preserved as start_ms (not +24 hours)
+        let (updated, occ) = Scheduler::compute_next_occurrence(&seq, now_ms);
+
+        // start_time must NOT have moved to tomorrow (+24h)
+        assert_eq!(updated.start_time, start_ms);
+        assert_eq!(updated.current_occurrence_index, 1);
+        // Next occurrence MUST be occurrence 1 at 12:00 PM today, NOT tomorrow!
+        assert_eq!(updated.next_trigger_time, Some(start_ms + interval_ms));
+        assert!(occ.is_some());
+        assert_eq!(occ.unwrap().trigger_time, start_ms + interval_ms);
+    }
+
+    #[test]
+    fn test_editing_with_cadence_change_resets_index_and_targets_next_future() {
+        // Routine: started at 8:00 AM with 30m intervals
+        // At 10:15 AM (after occ 0..4), user edits interval to 3 hours (8 AM, 11 AM, 2 PM...)
+        let start_ms = 10_000_000;
+        let mut seq = make_test_sequence(start_ms, 3, 4, RepetitionMode::Daily);
+        // Interval changed to 3 hours, index reset to 0
+        seq.interval_value = 3;
+        seq.current_occurrence_index = 0;
+
+        let now_ms = start_ms + (2 * 3600 * 1000) + (15 * 60 * 1000); // 10:15 AM
+        let (updated, occ) = Scheduler::compute_next_occurrence(&seq, now_ms);
+
+        // Occurrence 0 (8:00 AM) is past
+        // Occurrence 1 (11:00 AM = start_ms + 3h) is in future (> 10:15 AM)
+        assert_eq!(updated.current_occurrence_index, 1);
+        let expected_11am = start_ms + (3 * 3600 * 1000);
+        assert_eq!(updated.next_trigger_time, Some(expected_11am));
+        assert!(occ.is_some());
+        assert_eq!(occ.unwrap().trigger_time, expected_11am);
     }
 }
 
