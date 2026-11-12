@@ -109,9 +109,24 @@ export function App() {
 
   const handleSaveAlarm = async (payload: CreateAlarmPayload) => {
     if (editingAlarm) {
+      const cadenceChanged =
+        payload.start_time !== editingAlarm.start_time ||
+        payload.interval_value !== editingAlarm.interval_value ||
+        payload.interval_unit !== editingAlarm.interval_unit ||
+        payload.total_occurrences !== editingAlarm.total_occurrences ||
+        payload.repetition_mode !== editingAlarm.repetition_mode;
+
+      const isCompleted = editingAlarm.state === "completed";
+      const shouldResetIndex = cadenceChanged || isCompleted;
+
       const updated: AlarmSequence = {
         ...editingAlarm,
         ...payload,
+        current_occurrence_index: shouldResetIndex ? 0 : editingAlarm.current_occurrence_index,
+        state: isCompleted ? "scheduled" : editingAlarm.state,
+        enabled: isCompleted ? true : editingAlarm.enabled,
+        snoozed_until: shouldResetIndex ? null : editingAlarm.snoozed_until,
+        snooze_count: shouldResetIndex ? 0 : editingAlarm.snooze_count,
         updated_at: Date.now(),
       };
       const res = await AlarmApi.updateAlarm(updated);

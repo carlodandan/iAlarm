@@ -31,7 +31,7 @@ export function Download() {
                 </div>
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#40e17e]/15 text-[#40e17e] border border-[#40e17e]/30">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#40e17e] animate-pulse" />
-                  Latest: v1.0.3
+                  Latest: v{import.meta.env.VITE_APP_VERSION}
                 </span>
               </div>
 

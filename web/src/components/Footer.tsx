@@ -131,7 +131,7 @@ export function Footer() {
                     rel="noopener noreferrer"
                     className="hover:text-[#c8bfff] transition-colors"
                   >
-                    Changelog (v1.0.3)
+                    Changelog (v{import.meta.env.VITE_APP_VERSION})
                   </a>
                 </li>
               </ul>

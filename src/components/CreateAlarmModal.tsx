@@ -86,15 +86,60 @@ export const CreateAlarmModal: React.FC<CreateAlarmModalProps> = ({
   const [previewItems, setPreviewItems] = useState<SchedulePreviewItem[]>([]);
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isTomorrowPreset, setIsTomorrowPreset] = useState(false);
 
-  // Compute calculated anchor start timestamp
-  const calculateStartTimeMs = () => {
-    const now = new Date();
+  // Preserve initial anchor time if editing an existing alarm
+  const initialAnchorInfo = initialAlarm
+    ? {
+        hour24: new Date(initialAlarm.start_time).getHours(),
+        minute: new Date(initialAlarm.start_time).getMinutes(),
+        startTime: initialAlarm.start_time,
+        state: initialAlarm.state,
+      }
+    : null;
+
+  const getSelectedHour24 = () => {
     let hours24 = startHour;
     if (settings.time_format !== "24h") {
       if (isPM && startHour < 12) hours24 += 12;
       if (!isPM && startHour === 12) hours24 = 0;
     }
+    return hours24;
+  };
+
+  const isTimeUnchanged = () => {
+    if (!initialAnchorInfo) return false;
+    return (
+      getSelectedHour24() === initialAnchorInfo.hour24 &&
+      startMinute === initialAnchorInfo.minute
+    );
+  };
+
+  // Compute calculated anchor start timestamp
+  const calculateStartTimeMs = () => {
+    const now = new Date();
+    const hours24 = getSelectedHour24();
+
+    // If "Tomorrow 7A" preset is active, skip reusing initialAnchorInfo.startTime and target the following day
+    if (isTomorrowPreset) {
+      const target = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, hours24, startMinute, 0, 0);
+      return target.getTime();
+    }
+
+    // If editing an existing alarm and the user did NOT change the time of day:
+    if (initialAnchorInfo && isTimeUnchanged()) {
+      const intervalMs =
+        intervalUnit === "hours" ? intervalValue * 3600 * 1000 : intervalValue * 60 * 1000;
+      const isOneTime = repetitionMode === "one_time" && !isContinuous;
+      const lastOccTime = initialAnchorInfo.startTime + (occurrences - 1) * intervalMs;
+      const noFutureOccurrences = isOneTime && lastOccTime <= now.getTime();
+
+      // If a one-time alarm has no future occurrences remaining, do not preserve stored anchor
+      if (!noFutureOccurrences && initialAnchorInfo.state !== "completed") {
+        return initialAnchorInfo.startTime;
+      }
+    }
+
     const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours24, startMinute, 0, 0);
     // If targeted time is earlier than now, set to tomorrow
     if (target.getTime() <= now.getTime()) {
@@ -113,7 +158,7 @@ export const CreateAlarmModal: React.FC<CreateAlarmModalProps> = ({
       occurrences,
       settings.time_format === "24h"
     ).then((items) => setPreviewItems(items));
-  }, [startHour, startMinute, isPM, intervalValue, intervalUnit, occurrences, settings.time_format]);
+  }, [startHour, startMinute, isPM, intervalValue, intervalUnit, occurrences, settings.time_format, isTomorrowPreset, repetitionMode, isContinuous]);
 
   // Clean up audio preview on unmount
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -157,6 +202,7 @@ export const CreateAlarmModal: React.FC<CreateAlarmModalProps> = ({
   const handleQuickPreset = (type: "now" | "top" | "tomorrow7a") => {
     const now = new Date();
     if (type === "now") {
+      setIsTomorrowPreset(false);
       const future = new Date(now.getTime() + 5 * 60 * 1000);
       const h = future.getHours();
       const m = future.getMinutes();
@@ -164,6 +210,7 @@ export const CreateAlarmModal: React.FC<CreateAlarmModalProps> = ({
       setStartMinute(m);
       setIsPM(h >= 12);
     } else if (type === "top") {
+      setIsTomorrowPreset(false);
       const top = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() + 1, 0, 0);
       const h = top.getHours();
       setStartHour(settings.time_format === "24h" ? h : h % 12 || 12);
@@ -173,6 +220,7 @@ export const CreateAlarmModal: React.FC<CreateAlarmModalProps> = ({
       setStartHour(7);
       setStartMinute(0);
       setIsPM(false);
+      setIsTomorrowPreset(true);
     }
   };
 
@@ -331,6 +379,7 @@ export const CreateAlarmModal: React.FC<CreateAlarmModalProps> = ({
                 max={settings.time_format === "24h" ? 23 : 12}
                 value={settings.time_format === "24h" ? startHour.toString().padStart(2, "0") : startHour}
                 onChange={(e) => {
+                  setIsTomorrowPreset(false);
                   const val = parseInt(e.target.value, 10);
                   setStartHour(isNaN(val) ? 0 : val);
                 }}
@@ -343,7 +392,10 @@ export const CreateAlarmModal: React.FC<CreateAlarmModalProps> = ({
                 min={0}
                 max={59}
                 value={startMinute.toString().padStart(2, "0")}
-                onChange={(e) => setStartMinute(Math.min(59, Math.max(0, parseInt(e.target.value) || 0)))}
+                onChange={(e) => {
+                  setIsTomorrowPreset(false);
+                  setStartMinute(Math.min(59, Math.max(0, parseInt(e.target.value) || 0)));
+                }}
                 className="w-14 text-left bg-transparent text-5xl font-light text-[#c8bfff] tracking-tight tabular-nums outline-none p-0 focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />
             </div>
@@ -353,7 +405,10 @@ export const CreateAlarmModal: React.FC<CreateAlarmModalProps> = ({
               <div className="flex flex-col gap-1 bg-[#292a2d] p-1 rounded-xl border border-white/5">
                 <button
                   type="button"
-                  onClick={() => setIsPM(false)}
+                  onClick={() => {
+                    setIsTomorrowPreset(false);
+                    setIsPM(false);
+                  }}
                   className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
                     !isPM ? "bg-[#c8bfff] text-[#121316] shadow-sm" : "text-[#c9c4d3]"
                   }`}
@@ -362,7 +417,10 @@ export const CreateAlarmModal: React.FC<CreateAlarmModalProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIsPM(true)}
+                  onClick={() => {
+                    setIsTomorrowPreset(false);
+                    setIsPM(true);
+                  }}
                   className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
                     isPM ? "bg-[#c8bfff] text-[#121316] shadow-sm" : "text-[#c9c4d3]"
                   }`}
@@ -818,7 +876,9 @@ export const CreateAlarmModal: React.FC<CreateAlarmModalProps> = ({
             className="w-full h-14 rounded-full bg-[#c8bfff] text-[#121316] font-semibold text-base shadow-xl shadow-[#c8bfff]/25 active:scale-[0.98] transition-all flex items-center justify-center gap-2 hover:bg-[#a99bff]"
           >
             <Clock className="w-5 h-5" />
-            <span>Schedule {occurrences} Alarms</span>
+            <span>
+              {initialAlarm ? "Save Changes" : `Schedule ${occurrences} Alarms`}
+            </span>
           </button>
         </div>
       </div>
