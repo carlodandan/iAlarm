@@ -223,7 +223,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <div className="space-y-2">
             <div className="flex items-center justify-between text-xs">
               <span className="font-medium text-[#e3e2e6]">Display Theme</span>
-              <span className="text-[#928f9d] capitalize">{settings.display_theme}</span>
+              <span className="text-[#928f9d] capitalize">
+                {settings.display_theme === "system"
+                  ? `System (${typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "Dark" : "Light"})`
+                  : settings.display_theme}
+              </span>
             </div>
             <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-[#1f1f23] border border-white/5 text-xs">
               <button
