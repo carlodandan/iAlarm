@@ -105,7 +105,7 @@ export function Hero() {
                 className="w-full sm:w-auto h-12 px-7 rounded-2xl bg-[#c8bfff] hover:bg-[#dcd6ff] text-[#121316] font-bold text-sm flex items-center justify-center gap-2.5 transition-all shadow-xl shadow-[#c8bfff]/25 active:scale-95"
               >
                 <Download className="w-4 h-4" />
-                <span>Download Android APK (v1.0.3)</span>
+                <span>Download Android APK (v{import.meta.env.VITE_APP_VERSION})</span>
               </a>
               <a
                 href="#calculator"

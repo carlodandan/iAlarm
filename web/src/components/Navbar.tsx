@@ -50,7 +50,7 @@ export function Navbar() {
                 </span>
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#40e17e]/15 text-[#40e17e] border border-[#40e17e]/30">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#40e17e] animate-pulse" />
-                  v1.0.3
+                  v{import.meta.env.VITE_APP_VERSION}
                 </span>
               </div>
               <span className="text-[10px] text-[#928f9d] uppercase font-semibold tracking-widest hidden sm:block">
